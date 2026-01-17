@@ -1,0 +1,46 @@
+# Render Deployment Configuration
+services:
+  # Backend Service
+  - type: web
+    name: hostel-expense-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hostel-expense-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+  # PostgreSQL Database
+  - type: psql
+    name: hostel-expense-db
+    databaseName: hostel_expense_db
+    user: hostel_user
+    plan: starter
+    ipAllowList: [] # Allow connections from anywhere
+
+  # Cron Job for Auto Cleanup
+  - type: worker
+    name: hostel-expense-cleanup
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: node dist/services/dataCleanup.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hostel-expense-db
+          property: connectionString
+    autoDeploy: true

@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rootDirectory": ".",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "VITE_API_BASE_URL": "@hostel-expense-backend-url"
+  }
+}

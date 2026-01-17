@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Hostel {
+  id                String   @id @default(uuid())
+  registrationNumber String   @unique @map("registration_number")
+  name              String
+  address           String?
+  phone             String?
+  email             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  users             User[]
+  expenses          Expense[]
+  deposits          Deposit[]
+  dailyCalculations DailyCalculation[]
+  notices           NoticeBoard[]
+  notes             Note[]
+  
+  @@map("hostels")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  name            String
+  role            UserRole  @default(USER)
+  hostelId        String    @map("hostel_id")
+  otp             String?   // Store OTP temporarily
+  otpExpiry       DateTime? @map("otp_expiry") // OTP expiration time
+  isEmailVerified Boolean   @default(false) @map("is_email_verified")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  hostel          Hostel    @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  expenses        Expense[]
+  deposits        Deposit[]
+  createdNotices  NoticeBoard[] @relation("CreatedNotices")
+  createdNotes    Note[] @relation("CreatedNotes")
+  
+  @@map("users")
+}
+
+model Expense {
+  id          String      @id @default(uuid())
+  amount      Decimal     @db.Decimal(10, 2)
+  description String
+  category    String
+  date        DateTime    @db.Date
+  userId      String      @map("user_id")
+  hostelId    String      @map("hostel_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostel      Hostel      @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  
+  @@map("expenses")
+  @@index([hostelId, date])
+}
+
+model Deposit {
+  id          String      @id @default(uuid())
+  amount      Decimal     @db.Decimal(10, 2)
+  description String
+  date        DateTime    @db.Date
+  userId      String      @map("user_id")
+  hostelId    String      @map("hostel_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostel      Hostel      @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  
+  @@map("deposits")
+  @@index([hostelId, date])
+}
+
+model DailyCalculation {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  totalExpenses   Decimal  @db.Decimal(10, 2) @map("total_expenses")
+  totalDeposits   Decimal  @db.Decimal(10, 2) @map("total_deposits")
+  netBalance      Decimal  @db.Decimal(10, 2) @map("net_balance")
+  hostelId        String   @map("hostel_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  hostel          Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  
+  @@unique([hostelId, date])
+  @@map("daily_calculations")
+  @@index([hostelId, date])
+}
+
+model NoticeBoard {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  priority    NoticePriority @default(NORMAL)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String   @map("created_by")
+  hostelId    String   @map("hostel_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  createdByUser User   @relation("CreatedNotices", fields: [createdBy], references: [id], onDelete: Cascade)
+  hostel        Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  
+  @@map("notice_board")
+  @@index([hostelId, isActive, priority])
+}
+
+model Note {
+  id        String     @id @default(uuid())
+  title     String
+  content   String
+  category  NoteCategory @default(GENERAL)
+  isPublic  Boolean      @default(true) @map("is_public")
+  createdBy String       @map("created_by")
+  hostelId  String       @map("hostel_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  
+  // Relations
+  createdByUser User   @relation("CreatedNotes", fields: [createdBy], references: [id], onDelete: Cascade)
+  hostel        Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  
+  @@map("notes")
+  @@index([hostelId, category, isPublic])
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  MANAGER
+}
+
+enum NoticePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NoteCategory {
+  GENERAL
+  ACCOUNTS
+  BAZAAR
+  MAINTENANCE
+  MEETING
+  OTHER
+}
