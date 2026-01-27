@@ -15,18 +15,23 @@ import dashboardRoutes from './routes/dashboard';
 import noticeBoardRoutes from './routes/noticeBoard';
 import notesRoutes from './routes/notes';
 import mockDatabase, { initializeMockData } from './services/mockDatabase';
-import { dataCleanupService } from './services/dataCleanup';
 
 // Make mockDatabase available globally for routes
-export const prisma = mockDatabase;
+const prisma = mockDatabase;
 
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+    origin: [
+      'http://localhost:8080',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      process.env.FRONTEND_URL || 'http://localhost:8080',
+    ].filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
@@ -35,7 +40,12 @@ const io = new Server(server, {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    process.env.FRONTEND_URL || 'http://localhost:8080',
+  ].filter(Boolean),
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -50,6 +60,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
@@ -93,15 +106,11 @@ app.set('io', io);
 // Initialize mock data
 initializeMockData();
 
-// Initialize data cleanup service
-dataCleanupService;
-
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log('📊 Mock database initialized with test data');
-  console.log('🧹 Data cleanup service initialized');
   console.log('✅ Real-time updates enabled');
   console.log('📝 Test users:');
   console.log('  - admin@hostel.com / password (Admin)');

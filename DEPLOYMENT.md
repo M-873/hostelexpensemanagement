@@ -1,267 +1,289 @@
-# Hostel Expense Management - Deployment Guide
+# 🚀 Deployment Guide - Hostel Expense Management
 
-## 🚀 CI/CD Pipeline Overview
+This guide explains how to deploy the Hostel Expense Management application using the CI/CD pipeline.
 
-This project uses a comprehensive CI/CD pipeline that automatically deploys:
-- **Frontend** (React + Vite) → **Vercel**
-- **Backend** (Node.js + Express + Prisma) → **Render**
+## 📋 Prerequisites
 
-## 📁 Project Structure
+Before deploying, ensure you have:
+
+- ✅ GitHub account with access to all three repositories
+- ✅ Vercel account (for frontend hosting)
+- ✅ Render account (for backend hosting)
+- ✅ PostgreSQL database (can be provisioned via Render)
+
+## 🏗️ Project Structure
+
+The project uses a **monorepo-to-separate-repos** deployment strategy:
 
 ```
-hostel-expense-management/
-├── frontend/                 # React + Vite application
-│   ├── src/
-│   ├── dist/                 # Build output (for Vercel)
-│   ├── vercel.json          # Vercel configuration
-│   └── package.json
-├── backend/                  # Node.js + Express + Prisma
-│   ├── src/
-│   ├── dist/                 # Build output (for Render)
-│   ├── prisma/               # Database schema
-│   ├── render.yaml          # Render configuration
-│   └── package.json
-├── .github/
-│   └── workflows/           # GitHub Actions workflows
-│       ├── ci-cd.yml        # Main CI/CD pipeline
-│       ├── deploy-frontend.yml
-│       └── deploy-backend.yml
-└── scripts/
-    └── setup-deployment.sh  # Setup helper script
+Local Development (Monorepo):
+└── Hostel-Expense-Management/
+    ├── frontend/          # React + Vite application
+    ├── backend/           # Node.js + Express + Prisma API
+    └── .github/workflows/ # CI/CD automation
+
+Deployment (Separate Repos):
+├── hostelexpensemanagement1  → Deploys to Vercel (Frontend)
+└── hostelexpensemanagement   → Deploys to Render (Backend)
 ```
 
-## 🔧 Deployment Configuration
+**How it works**: GitHub Actions automatically syncs code from the monorepo to the deployment repositories when changes are pushed.
 
-### Frontend (Vercel)
+## 🔧 Setup Instructions
 
-**Build Settings:**
-- Framework: Vite
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Install Command: `npm install`
+### Step 1: Configure GitHub Secrets
 
-**Environment Variables:**
-```bash
-VITE_API_URL=https://your-backend-url.onrender.com
-VITE_SOCKET_URL=wss://your-backend-url.onrender.com
-```
+Add the following secrets to your monorepo repository at:
+`Settings > Secrets and variables > Actions > New repository secret`
 
-**Files:**
-- `frontend/vercel.json` - Vercel configuration
-- `.github/workflows/deploy-frontend.yml` - Deployment workflow
+1. **FRONTEND_DEPLOY_TOKEN**
+   - Personal Access Token with `repo` scope
+   - Used to push code to `hostelexpensemanagement1`
+   - [Create token here](https://github.com/settings/tokens/new)
 
-### Backend (Render)
+2. **BACKEND_DEPLOY_TOKEN**
+   - Personal Access Token with `repo` scope
+   - Used to push code to `hostelexpensemanagement`
+   - Can use the same token as above or create a separate one
 
-**Build Settings:**
-- Environment: Node.js
-- Build Command: `npm install && npx prisma generate && npm run build`
-- Start Command: `npm run start`
-- Root Directory: `backend`
+### Step 2: Configure Vercel (Frontend)
 
-**Environment Variables:**
-```bash
-NODE_ENV=production
-PORT=3001
-DATABASE_URL=postgresql://user:password@host:port/database
-JWT_SECRET=your-jwt-secret-key
-```
+1. **Connect Repository**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Import `hostelexpensemanagement1` repository
+   - Select `main` branch for production
 
-**Files:**
-- `backend/render.yaml` - Render configuration
-- `.github/workflows/deploy-backend.yml` - Deployment workflow
+2. **Configure Build Settings**
+   - Framework Preset: `Vite`
+   - Root Directory: `./` (leave default)
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
 
-## 🔐 Required GitHub Secrets
+3. **Add Environment Variables**
+   - Go to: `Project Settings > Environment Variables`
+   - Add variable:
+     ```
+     VITE_API_BASE_URL = https://your-backend-name.onrender.com/api
+     ```
+   - Replace `your-backend-name` with your actual Render service URL (from Step 3)
 
-Add these secrets to your GitHub repository at:
-`Settings → Secrets and variables → Actions`
+### Step 3: Configure Render (Backend)
 
-### For Vercel (Frontend):
-```bash
-VERCEL_TOKEN=your_vercel_api_token
-VERCEL_ORG_ID=your_vercel_organization_id
-VERCEL_PROJECT_ID=your_vercel_project_id
-```
+1. **Create Web Service**
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New +" → "Web Service"
+   - Connect `hostelexpensemanagement` repository
+   - Select `main` branch
 
-### For Render (Backend):
-```bash
-RENDER_API_KEY=your_render_api_key
-RENDER_SERVICE_ID=your_render_service_id
-```
+2. **Configure Service Settings**
+   - Name: `hostel-expense-backend` (or your preference)
+   - Runtime: `Node`
+   - Build Command: `npm install && npx prisma generate && npm run build`
+   - Start Command: `npm run start`
 
-### Optional Environment Variables:
-```bash
-VITE_API_URL=your_backend_api_url
-VITE_SOCKET_URL=your_websocket_url
-```
-
-## 🚀 How to Set Up
-
-### 1. Set up Vercel (Frontend)
-
-1. Go to [Vercel](https://vercel.com)
-2. Click "New Project"
-3. Import your GitHub repository
-4. Configure the project:
-   - **Framework Preset**: Vite
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-5. Add environment variables in Vercel dashboard
-6. Deploy and get your project ID and org ID
-
-### 2. Set up Render (Backend)
-
-1. Go to [Render](https://render.com)
-2. Create a new "Web Service"
-3. Connect your GitHub repository
-4. Configure the service:
-   - **Environment**: Node
-   - **Root Directory**: `backend`
-   - **Build Command**: `npm install && npx prisma generate && npm run build`
-   - **Start Command**: `npm run start`
-5. Add PostgreSQL database
-6. Add environment variables in Render dashboard
-7. Deploy and get your service ID
-
-### 3. Configure GitHub Secrets
-
-1. Go to your GitHub repository
-2. Navigate to `Settings → Secrets and variables → Actions`
-3. Add all the required secrets listed above
-4. Use the setup script for guidance:
-   ```bash
-   chmod +x scripts/setup-deployment.sh
-   ./scripts/setup-deployment.sh
+3. **Add Environment Variables**
+   ```
+   NODE_ENV=production
+   PORT=3001
+   DATABASE_URL=<your-postgresql-connection-string>
+   JWT_SECRET=<generate-strong-secret-key>
+   JWT_EXPIRES_IN=7d
+   FRONTEND_URL=https://your-project-name.vercel.app
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_USER=<your-gmail-address>
+   EMAIL_PASS=<your-gmail-app-password>
+   DATA_RETENTION_DAYS=90
+   CLEANUP_INTERVAL_HOURS=24
    ```
 
-## 🔄 Deployment Triggers
+4. **Create PostgreSQL Database** (if needed)
+   - In Render Dashboard: "New +" → "PostgreSQL"
+   - After creation, copy the "Internal Database URL"
+   - Use this as `DATABASE_URL` in your web service environment variables
 
-### Automatic Deployment (on push to main):
-- **Frontend changes** in `frontend/` → Triggers Vercel deployment
-- **Backend changes** in `backend/` → Triggers Render deployment
-- **Workflow changes** → Triggers respective deployment
+### Step 4: Update Environment Variables with Deployment URLs
 
-### Manual Deployment:
-- Go to GitHub Actions tab
-- Select the workflow
-- Click "Run workflow" → Choose environment
+After both services are deployed:
 
-## 📊 Deployment Pipeline
+1. **Update Vercel Environment Variable**
+   - Get your Render backend URL (e.g., `https://hostel-expense-backend.onrender.com`)
+   - In Vercel: Update `VITE_API_BASE_URL` to point to this URL
+   - Redeploy frontend
 
-### 1. CI/CD Pipeline (`ci-cd.yml`)
-- Runs on every push to main/develop
-- Tests both frontend and backend
-- Deploys to production (main branch only)
-- Provides deployment summary
+2. **Update Render Environment Variable**
+   - Get your Vercel frontend URL (e.g., `https://hostelexpensemanagement1.vercel.app`)
+   - In Render: Update `FRONTEND_URL` to this URL
+   - Redeploy backend
 
-### 2. Frontend Deployment (`deploy-frontend.yml`)
-- Triggered by frontend changes
-- Runs tests and linting
-- Builds the application
-- Deploys to Vercel
-- Performs health check
+## 🔄 CI/CD Workflow
 
-### 3. Backend Deployment (`deploy-backend.yml`)
-- Triggered by backend changes
-- Runs tests and linting
-- Generates Prisma client
-- Builds the application
-- Deploys to Render
-- Waits for deployment completion
+### Automated Deployments
 
-## 🧪 Testing Deployment Locally
+The GitHub Actions workflows automatically handle deployments:
 
-### Frontend:
+**Frontend Workflow** (`.github/workflows/deploy-frontend.yml`):
+- **Triggers on**: Changes to `frontend/**` directory
+- **Actions**: Syncs code to `hostelexpensemanagement1` repo
+- **Result**: Vercel auto-deploys from the updated repo
+
+**Backend Workflow** (`.github/workflows/deploy-backend.yml`):
+- **Triggers on**: Changes to `backend/**` directory
+- **Actions**: Syncs code to `hostelexpensemanagement` repo
+- **Result**: Render auto-deploys from the updated repo
+
+### Manual Deployment
+
+To manually trigger a deployment:
+
+1. Go to your monorepo on GitHub
+2. Navigate to `Actions` tab
+3. Select the workflow (`Deploy Frontend` or `Deploy Backend`)
+4. Click "Run workflow" → Select `main` branch → "Run workflow"
+
+## 🧪 Testing the Deployment
+
+### 1. Health Check
+
+Test backend is running:
 ```bash
-cd frontend
-npm install
-npm run build
-npm run preview  # Test the built application
+curl https://your-backend-name.onrender.com/api/health
 ```
 
-### Backend:
-```bash
-cd backend
-npm install
-npx prisma generate
-npm run build
-npm run start    # Test the built application
+Expected response:
+```json
+{"status":"OK","timestamp":"2026-01-27T..."}
 ```
 
-## 🔍 Monitoring and Debugging
+### 2. Frontend Connection
 
-### GitHub Actions:
-- Check the Actions tab in your repository
-- View logs for each workflow run
-- Download artifacts if needed
+1. Visit your Vercel URL: `https://your-project-name.vercel.app`
+2. Open browser DevTools (F12) → Console tab
+3. Check for any CORS or API connection errors
+4. Try logging in with test credentials
 
-### Vercel:
-- Check [Vercel Dashboard](https://vercel.com/dashboard)
-- View deployment logs
-- Check environment variables
-- Monitor performance
+### 3. Full E2E Test
 
-### Render:
-- Check [Render Dashboard](https://dashboard.render.com)
-- View service logs
-- Check environment variables
-- Monitor resource usage
+- Register a new account
+- Create a hostel
+- Add expenses and deposits
+- Verify calculations are correct
+- Test real-time updates (open in 2 browser tabs)
 
-## 🚨 Troubleshooting
+## 🐛 Troubleshooting
 
-### Common Issues:
+### CORS Errors
 
-1. **Build Failures:**
-   - Check Node.js version compatibility
-   - Verify all dependencies are installed
-   - Check for TypeScript errors
+**Problem**: Frontend shows CORS errors in console
 
-2. **Deployment Failures:**
-   - Verify all secrets are correctly set
-   - Check environment variables
-   - Review deployment logs
+**Solution**:
+1. Verify `FRONTEND_URL` in Render includes the correct Vercel URL
+2. Check there are no trailing slashes
+3. Redeploy backend after updating environment variable
 
-3. **API Connection Issues:**
-   - Ensure CORS is properly configured
-   - Verify API URLs in environment variables
-   - Check network connectivity
+### API Connection Failed
 
-### Getting Help:
-- Check GitHub Actions logs
-- Review deployment platform dashboards
-- Test locally before deploying
-- Use the setup script for guidance
+**Problem**: Frontend can't connect to backend
 
-## 📈 Performance Optimization
+**Solution**:
+1. Verify `VITE_API_BASE_URL` in Vercel is correct
+2. Ensure backend URL includes `/api` suffix
+3. Check backend is running: visit `https://your-backend.onrender.com/health`
+4. Redeploy frontend after updating environment variable
 
-### Frontend:
-- Enable Vercel's automatic optimizations
-- Use proper caching headers
-- Optimize images and assets
-- Implement code splitting
+### Database Connection Issues
 
-### Backend:
-- Use Render's auto-scaling features
-- Optimize database queries
-- Implement proper caching
-- Monitor resource usage
+**Problem**: Backend fails to start with database errors
 
-## 🔒 Security Best Practices
+**Solution**:
+1. Verify `DATABASE_URL` is correctly set in Render
+2. Run migrations: Add "npm run db:migrate" to build command
+3. Check database is accessible from Render (not behind firewall)
 
-1. **Never commit secrets** to your repository
-2. **Use environment variables** for sensitive data
-3. **Enable HTTPS** on both platforms
-4. **Set up proper CORS** configuration
-5. **Use strong JWT secrets**
-6. **Regularly update dependencies**
+### GitHub Actions Workflow Fails
 
-## 📚 Additional Resources
+**Problem**: Workflow fails with authentication error
 
-- [Vercel Documentation](https://vercel.com/docs)
-- [Render Documentation](https://render.com/docs)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Prisma Documentation](https://www.prisma.io/docs)
+**Solution**:
+1. Verify `FRONTEND_DEPLOY_TOKEN` and `BACKEND_DEPLOY_TOKEN` secrets are set
+2. Ensure tokens have `repo` scope
+3. Check tokens haven't expired
+4. Regenerate tokens if needed
+
+### Render Free Tier Spin-Down
+
+**Problem**: Backend slow on first request after inactivity
+
+**Solution**:
+- Render free tier spins down after 15 minutes of inactivity
+- First request after spin-down takes 30-60 seconds
+- Consider upgrading to paid tier for production use
+
+## 📊 Monitoring
+
+### Vercel
+- **Dashboard**: https://vercel.com/md-mahfuzul-islams-projects/frontend
+- **Logs**: Available in dashboard under "Deployments" → Select deployment → "Logs"
+- **Analytics**: Built-in analytics for page views and performance
+
+### Render
+- **Dashboard**: https://dashboard.render.com/web/srv-d5m7h063jp1c739tbp6g
+- **Logs**: Available in dashboard, shows real-time server logs
+- **Metrics**: CPU, memory, and request metrics available
+
+## 🔒 Security Checklist
+
+Before going to production:
+
+- [ ] Change `JWT_SECRET` to a strong, random value
+- [ ] Use environment-specific secrets (don't reuse dev secrets)
+- [ ] Enable HTTPS only (both Vercel and Render provide this by default)
+- [ ] Review CORS settings - specify exact origins, not wildcards
+- [ ] Set up database backups in Render
+- [ ] Enable Vercel password protection for staging deployments
+- [ ] Review rate limiting settings in backend
+- [ ] Set up error monitoring (e.g., Sentry)
+
+## 📝 Development Workflow
+
+### Making Changes
+
+1. **Work locally** on the monorepo
+2. **Test locally** with `npm run dev` in both frontend and backend
+3. **Commit changes** to the monorepo
+4. **Push to GitHub**
+5. **GitHub Actions automatically**:
+   - Detects which folder changed  
+   - Syncs code to appropriate deployment repo
+   - Triggers Vercel/Render deployment
+6. **Monitor deployment** in respective dashboards
+
+### Rollback
+
+If a deployment breaks:
+
+**Option 1: Revert via Git**
+```bash
+git revert <commit-hash>
+git push origin main
+```
+
+**Option 2: Redeploy Previous Version**
+- Vercel: Go to Deployments → Select working deployment → "Promote to Production"
+- Render: Go to Deploys → Select working deployment → "Redeploy"
+
+## 🆘 Support
+
+If you encounter issues:
+
+1. Check this troubleshooting guide
+2. Review deployment logs in Vercel/Render dashboards
+3. Check GitHub Actions workflow logs
+4. Verify all environment variables are correctly set
+5. Test API endpoints directly with curl/Postman
 
 ---
 
-**🎉 Your CI/CD pipeline is ready! Push to the main branch to trigger automatic deployment.**
+**🎉 Once deployed, your app will be live at:**
+- **Frontend**: `https://your-project-name.vercel.app`
+- **Backend API**: `https://your-backend-name.onrender.com/api`

@@ -1,180 +1,65 @@
-name: Frontend Deployment to Vercel
+name: Deploy Frontend to Vercel
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - master
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-frontend.yml'
-      - 'frontend/vercel.json'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - preview
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-  test:
-    name: Frontend Tests
+  sync-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run linting
-      run: npm run lint
-    
-    - name: Type checking
-      run: npm run type-check --if-present
-    
-    - name: Build frontend
-      run: npm run build
-    
-    - name: Validate build output
-      run: |
-        if [ ! -d "dist" ]; then
-          echo "❌ Build output not found"
-          exit 1
-        fi
-        
-        if [ ! -f "dist/index.html" ]; then
-          echo "❌ index.html not found in build output"
-          exit 1
-        fi
-        
-        echo "✅ Build output validated"
-        echo "📦 Build size: $(du -sh dist | cut -f1)"
-    
-    - name: Run tests (if available)
-      run: npm test --if-present
-
-  deploy:
-    name: Deploy to Vercel
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Install dependencies
-      working-directory: frontend
-      run: npm ci
-    
-    - name: Build frontend
-      working-directory: frontend
-      run: npm run build
-    
-    - name: Validate deployment readiness
-      working-directory: frontend
-      run: |
-        # Check if all required files exist
-        if [ ! -f "dist/index.html" ]; then
-          echo "❌ index.html not found in build output"
-          exit 1
-        fi
-        
-        if [ ! -f "vercel.json" ]; then
-          echo "❌ vercel.json not found"
-          exit 1
-        fi
-        
-        echo "✅ Deployment readiness validated"
-    
-    - name: Deploy to Vercel
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        working-directory: frontend
-        vercel-args: '--prod'
-        vercel-project-name: 'hostel-expense-frontend'
-    
-    - name: Verify deployment
-      run: |
-        echo "🔍 Verifying deployment..."
-        sleep 10
-        
-        # Get deployment URL from Vercel
-        deployment_url=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-          "https://api.vercel.com/v6/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}&limit=1" | \
-          grep -o '"url":"[^"]*"' | head -1 | cut -d'"' -f4)
-        
-        if [ -n "$deployment_url" ]; then
-          echo "✅ Deployment URL: https://$deployment_url"
-          echo "VERCEL_URL=$deployment_url" >> $GITHUB_ENV
-        else
-          echo "⚠️ Could not retrieve deployment URL"
-        fi
-    
-    - name: Run health check
-      if: env.VERCEL_URL
-      run: |
-        echo "🏥 Running health check..."
-        max_attempts=5
-        attempt=0
-        
-        while [ $attempt -lt $max_attempts ]; do
-          response=$(curl -s -o /dev/null -w "%{http_code}" "https://${VERCEL_URL}")
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+      
+      - name: Clone frontend deployment repo
+        env:
+          FRONTEND_DEPLOY_TOKEN: ${{ secrets.FRONTEND_DEPLOY_TOKEN }}
+        run: |
+          git clone https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git frontend-deploy
+      
+      - name: Sync frontend code
+        run: |
+          # Remove all files except .git directory
+          find frontend-deploy -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           
-          if [ "$response" = "200" ]; then
-            echo "✅ Health check passed (HTTP 200)"
-            exit 0
-          else
-            echo "🔄 Health check attempt $((attempt + 1))/$max_attempts: HTTP $response"
-            sleep 10
-            attempt=$((attempt + 1))
+          # Copy frontend files
+          cp -r frontend/* frontend-deploy/
+          
+          # Copy root package.json files if needed
+          if [ -f "package.json" ]; then
+            cp package.json frontend-deploy/package-root.json 2>/dev/null || true
           fi
-        done
-        
-        echo "⚠️ Health check did not pass within expected time"
-    
-    - name: Deployment Summary
-      if: always()
-      run: |
-        echo "🎯 Frontend Deployment Summary"
-        echo "============================="
-        echo ""
-        echo "📊 Status: ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-        echo "🔄 Trigger: ${{ github.event_name }}"
-        echo "🌿 Branch: ${{ github.ref_name }}"
-        echo ""
-        if [ -n "$VERCEL_URL" ]; then
-          echo "🌐 Deployment URL: https://$VERCEL_URL"
-        fi
-        echo ""
-        echo "🔗 Check your deployment at:"
-        echo "   - Vercel Dashboard: https://vercel.com/dashboard"
-        echo "   - Project Settings: https://vercel.com/${{ secrets.VERCEL_ORG_ID }}/${{ secrets.VERCEL_PROJECT_ID }}/settings"
-        echo ""
-        echo "📋 Environment Variables configured in Vercel:"
-        echo "   - VITE_API_URL: Your backend API URL"
-        echo "   - VITE_SOCKET_URL: Your WebSocket URL"
+      
+      - name: Commit and push changes
+        working-directory: frontend-deploy
+        run: |
+          git add .
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "Sync from monorepo: ${{ github.sha }}"
+          git push origin master
+      
+      - name: Trigger Vercel deployment
+        if: success()
+        run: |
+          echo "✅ Frontend code synced successfully"
+          echo "Vercel will automatically deploy from the updated repository"
+          echo "Monitor deployment at: https://vercel.com/md-mahfuzul-islams-projects/frontend"
