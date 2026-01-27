@@ -30,38 +30,38 @@ jobs:
         run: |
           git clone https://x-access-token:${BACKEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement.git backend-deploy
       
-      - name: Sync backend code
-        run: |
-          # Clean deployment repo except .git
-          find backend-deploy -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          
-          # Copy backend files excluding node_modules and other artifacts
-          mkdir -p temp_sync_backend
-          cp -r backend/* temp_sync_backend/
-          rm -rf temp_sync_backend/node_modules
-          rm -rf temp_sync_backend/dist
-          
-          cp -r temp_sync_backend/* backend-deploy/
-          rm -rf temp_sync_backend
-          
-          # Copy README from root if it exists
-          if [ -f "README.md" ]; then
-            cp README.md backend-deploy/ 2>/dev/null || true
-          fi
-      
-      - name: Commit and push changes
-        working-directory: backend-deploy
-        run: |
-          git add .
-          
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          
-          git commit -m "Sync from monorepo: ${{ github.sha }}"
-          git push origin master
+#      - name: Sync backend code
+#        run: |
+#          # Clean deployment repo except .git
+#          find backend-deploy -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+#          
+#          # Copy backend files excluding node_modules and other artifacts
+#          mkdir -p temp_sync_backend
+#          cp -r backend/* temp_sync_backend/
+#          rm -rf temp_sync_backend/node_modules
+#          rm -rf temp_sync_backend/dist
+#          
+#          cp -r temp_sync_backend/* backend-deploy/
+#          rm -rf temp_sync_backend
+#          
+#          # Copy README from root if it exists
+#          if [ -f "README.md" ]; then
+#            cp README.md backend-deploy/ 2>/dev/null || true
+#          fi
+#      
+#      - name: Commit and push changes
+#        working-directory: backend-deploy
+#        run: |
+#          git add .
+#          
+#          # Check if there are changes to commit
+#          if git diff --staged --quiet; then
+#            echo "No changes to commit"
+#            exit 0
+#          fi
+#          
+#          git commit -m "Sync from monorepo: ${{ github.sha }}"
+#          git push origin master
       
       - name: Trigger Render deployment
         if: success()
