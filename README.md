@@ -93,7 +93,7 @@ hostel-expense-management/
 
 4. **Access the application**
    - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3000
+   - Backend API: http://localhost:3001
 
 ## 📋 Available Scripts
 
@@ -120,15 +120,21 @@ npm run db:seed      # Seed database with sample data
 
 ### Frontend (.env)
 ```
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:3001/api
 ```
 
 ### Backend (.env)
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/hostel_expenses
 JWT_SECRET=your-secret-key
-PORT=3000
+JWT_EXPIRES_IN=7d
+GMAIL_USER=your-gmail-address@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password-here
+PORT=3001
 NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+CLEANUP_INTERVAL_HOURS=24
+DATA_RETENTION_DAYS=90
 ```
 
 ## 🚀 Deployment
@@ -219,4 +225,8 @@ If you encounter any issues:
 
 ---
 
-**Made with ❤️ by Md Mahfuzul Islam**
+
+---
+
+**🚀 Automated CI/CD Pipeline Active**
+The project is now fully automated with GitHub Actions syncing code to Vercel and Render deployment repositories.
