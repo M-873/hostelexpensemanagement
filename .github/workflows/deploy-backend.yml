@@ -32,11 +32,17 @@ jobs:
       
       - name: Sync backend code
         run: |
-          # Remove all files except .git directory
+          # Clean deployment repo except .git
           find backend-deploy -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           
-          # Copy backend files
-          cp -r backend/* backend-deploy/
+          # Copy backend files excluding node_modules and other artifacts
+          mkdir -p temp_sync_backend
+          cp -r backend/* temp_sync_backend/
+          rm -rf temp_sync_backend/node_modules
+          rm -rf temp_sync_backend/dist
+          
+          cp -r temp_sync_backend/* backend-deploy/
+          rm -rf temp_sync_backend
           
           # Copy README from root if it exists
           if [ -f "README.md" ]; then

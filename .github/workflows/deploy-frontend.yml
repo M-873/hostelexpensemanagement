@@ -32,11 +32,26 @@ jobs:
       
       - name: Sync frontend code
         run: |
-          # Remove all files except .git directory
+          # Use rsync to sync files while excluding unwanted directories
+          # rsync -av --delete --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.vercel' --exclude='.vite' frontend/ frontend-deploy/
+          
+          # Since rsync might not be exactly what we want if we're deleting everything else anyway,
+          # let's stick to find/cp but exclude node_modules.
+          
+          # Clean deployment repo except .git
           find frontend-deploy -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           
-          # Copy frontend files
-          cp -r frontend/* frontend-deploy/
+          # Copy frontend files excluding node_modules and other artifacts
+          # Use a temporary folder to prepare the sync
+          mkdir -p temp_sync
+          cp -r frontend/* temp_sync/
+          rm -rf temp_sync/node_modules
+          rm -rf temp_sync/dist
+          rm -rf temp_sync/.vercel
+          rm -rf temp_sync/.vite
+          
+          cp -r temp_sync/* frontend-deploy/
+          rm -rf temp_sync
           
           # Copy root package.json files if needed
           if [ -f "package.json" ]; then
