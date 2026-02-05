@@ -8,46 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Hostel, MembershipRequest } from '@/types';
+import { hostelService } from '@/services/hostelService';
+import { toast } from '@/hooks/use-toast';
 
-// Mock hostel data - in real app this would come from API
-const mockHostels: Hostel[] = [
-  {
-    id: 'hostel-1',
-    name: 'Green Valley Hostel',
-    registrationNumber: 'GVH2024001',
-    adminId: '1',
-    adminName: 'Admin User',
-    createdAt: '2024-01-01',
-    memberCount: 4,
-    maxMembers: 10,
-    description: 'A peaceful hostel near the university'
-  },
-  {
-    id: 'hostel-2',
-    name: 'City Center Hostel',
-    registrationNumber: 'CCH2024002',
-    adminId: '2',
-    adminName: 'Another Admin',
-    createdAt: '2024-01-15',
-    memberCount: 6,
-    maxMembers: 8,
-    description: 'Modern hostel in the heart of the city'
-  }
-];
-
-// Mock membership requests
-const mockMembershipRequests: MembershipRequest[] = [
-  {
-    id: 'req-1',
-    userId: 'user-1',
-    userName: 'John Doe',
-    userEmail: 'john@example.com',
-    hostelId: 'hostel-1',
-    hostelName: 'Green Valley Hostel',
-    status: 'pending',
-    requestedAt: '2024-01-20'
-  }
-];
+// Membership requests will be fetched from API later
+const mockMembershipRequests: MembershipRequest[] = [];
 
 export default function HostelManagement() {
   const { user, isAdmin } = useAuth();
@@ -59,87 +24,79 @@ export default function HostelManagement() {
 
   // Form states for creating hostel
   const [hostelName, setHostelName] = useState('');
-  const [registrationNumber, setRegistrationNumber] = useState('');
-  const [maxMembers, setMaxMembers] = useState('10');
-  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-
-  // Generate registration number
-  const generateRegistrationNumber = () => {
-    const prefix = hostelName.substring(0, 3).toUpperCase();
-    const random = Math.floor(Math.random() * 9000) + 1000;
-    return `${prefix}${new Date().getFullYear()}${random}`;
-  };
+  const [createdHostel, setCreatedHostel] = useState<Hostel | null>(null);
 
   const handleCreateHostel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hostelName.trim()) return;
-    if (!registrationNumber.trim() || !/^\d{6}$/.test(registrationNumber)) {
-      alert('Please enter a valid 6-digit registration number');
-      return;
-    }
 
     setIsCreating(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const newHostel: Hostel = {
-        id: `hostel-${Date.now()}`,
+    try {
+      const hostel = await hostelService.createHostel({
         name: hostelName,
-        registrationNumber: registrationNumber,
-        adminId: user?.id || '1',
-        adminName: user?.name || 'Admin',
-        createdAt: new Date().toISOString().split('T')[0],
-        memberCount: 1, // Admin is first member
-        maxMembers: parseInt(maxMembers) || 10,
-        description: description || undefined
-      };
-      
-      // In real app, this would be an API call
-      console.log('Created hostel:', newHostel);
-      
-      // Reset form
-      setHostelName('');
-      setRegistrationNumber('');
-      setMaxMembers('10');
-      setDescription('');
+        address,
+        phone,
+        email
+      });
+
+      setCreatedHostel(hostel);
+
+      toast({
+        title: "Success",
+        description: `Hostel "${hostel.name}" created! Registration Number: ${hostel.registrationNumber}`,
+      });
+
+      // Update local storage user
+      if (user) {
+        const updatedUser = { ...user, hostelId: hostel.id, role: 'admin' };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Create hostel error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create hostel');
+    } finally {
       setIsCreating(false);
-      
-      // Show success and redirect to dashboard
-      alert(`Hostel "${newHostel.name}" created successfully!\nRegistration Number: ${newHostel.registrationNumber}`);
-      navigate('/home');
-    }, 1500);
+    }
   };
 
-  const handleSearchHostels = () => {
+  const handleSearchHostels = async () => {
     if (!searchQuery.trim()) return;
-    
-    // Simulate search
-    const results = mockHostels.filter(hostel => 
-      hostel.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      hostel.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    
-    setSearchResults(results);
-    setHasSearched(true);
+
+    try {
+      const results = await hostelService.searchHostels(searchQuery);
+      setSearchResults(results);
+      setHasSearched(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      alert('Failed to search hostels');
+    }
   };
 
-  const handleJoinRequest = (hostelId: string, hostelName: string) => {
-    const newRequest: MembershipRequest = {
-      id: `req-${Date.now()}`,
-      userId: user?.id || 'user-1',
-      userName: user?.name || 'Current User',
-      userEmail: user?.email || 'user@example.com',
-      hostelId,
-      hostelName,
-      status: 'pending',
-      requestedAt: new Date().toISOString().split('T')[0]
-    };
-    
-    // In real app, this would be an API call
-    console.log('Membership request sent:', newRequest);
-    alert(`Membership request sent to ${hostelName}! You will be notified when approved.`);
-    navigate('/home');
+  const handleJoinRequest = async (hostelId: string, hostelName: string) => {
+    try {
+      await hostelService.joinHostel(hostelId);
+
+      toast({
+        title: "Joined Successfully",
+        description: `You are now a member of ${hostelName}!`,
+      });
+
+      // Update local user session
+      if (user) {
+        const updatedUser = { ...user, hostelId };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        window.location.reload(); // Refresh to update context
+      }
+
+      navigate('/home');
+    } catch (error) {
+      console.error('Join error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to join hostel');
+    }
   };
 
   const handleRequestAction = (requestId: string, action: 'approve' | 'reject') => {
@@ -164,9 +121,8 @@ export default function HostelManagement() {
             {isAdmin && (
               <button
                 onClick={() => setActiveTab('create')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  activeTab === 'create' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
-                }`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'create' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                  }`}
               >
                 <Plus className="h-4 w-4 inline mr-2" />
                 Create Hostel
@@ -174,9 +130,8 @@ export default function HostelManagement() {
             )}
             <button
               onClick={() => setActiveTab('search')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                activeTab === 'search' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'search' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                }`}
             >
               <Search className="h-4 w-4 inline mr-2" />
               Find Hostel
@@ -184,9 +139,8 @@ export default function HostelManagement() {
             {isAdmin && (
               <button
                 onClick={() => setActiveTab('requests')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  activeTab === 'requests' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
-                }`}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'requests' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                  }`}
               >
                 <Users className="h-4 w-4 inline mr-2" />
                 Requests
@@ -201,64 +155,72 @@ export default function HostelManagement() {
             <CardHeader>
               <CardTitle>Create New Hostel</CardTitle>
               <CardDescription>
-                Set up a new hostel with a unique registration number
+                Set up a new hostel. A unique registration number will be generated.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleCreateHostel} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="hostelName">Hostel Name</Label>
-                  <Input
-                    id="hostelName"
-                    placeholder="Enter hostel name"
-                    value={hostelName}
-                    onChange={(e) => setHostelName(e.target.value)}
-                    required
-                  />
+              {createdHostel ? (
+                <div className="space-y-6 text-center py-4">
+                  <div className="bg-primary/10 p-6 rounded-2xl border-2 border-primary/20 space-y-4">
+                    <Building2 className="h-16 w-16 text-primary mx-auto" />
+                    <h2 className="text-2xl font-bold">{createdHostel.name}</h2>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-sm uppercase tracking-wider font-semibold">Registration Number</p>
+                      <p className="text-4xl font-mono font-bold text-primary tracking-widest">{createdHostel.registrationNumber}</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Share this number with your members so they can join!</p>
+                  </div>
+                  <Button onClick={() => navigate('/home')} className="w-full">Go to Dashboard</Button>
                 </div>
+              ) : (
+                <form onSubmit={handleCreateHostel} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="hostelName">Hostel Name</Label>
+                    <Input
+                      id="hostelName"
+                      placeholder="Enter hostel name"
+                      value={hostelName}
+                      onChange={(e) => setHostelName(e.target.value)}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="registrationNumber">Registration Number (6 digits)</Label>
-                  <Input
-                    id="registrationNumber"
-                    type="text"
-                    placeholder="123456"
-                    value={registrationNumber}
-                    onChange={(e) => setRegistrationNumber(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
-                    pattern="\d{6}"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">Enter exactly 6 digits for registration number</p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      placeholder="Hostel address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="maxMembers">Maximum Members</Label>
-                  <Input
-                    id="maxMembers"
-                    type="number"
-                    placeholder="10"
-                    value={maxMembers}
-                    onChange={(e) => setMaxMembers(e.target.value)}
-                    min="1"
-                    max="50"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      placeholder="Contact number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Input
-                    id="description"
-                    placeholder="Brief description of your hostel"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Hostel email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
 
-                <Button type="submit" className="w-full" disabled={isCreating}>
-                  {isCreating ? 'Creating...' : 'Create Hostel'}
-                </Button>
-              </form>
+                  <Button type="submit" className="w-full" disabled={isCreating}>
+                    {isCreating ? 'Creating...' : 'Create Hostel'}
+                  </Button>
+                </form>
+              )}
             </CardContent>
           </Card>
         )}

@@ -51,10 +51,10 @@ export const mockSummary: Summary = {
 };
 
 export const mockSpaceMembers: User[] = [
-  { id: '1', name: 'Mahfuz', email: 'mahfuz@gmail.com', role: 'admin', spaceId: 'space-1' },
-  { id: '2', name: 'Rakib', email: 'rakib@gmail.com', role: 'user', spaceId: 'space-1' },
-  { id: '3', name: 'Bipu', email: 'bipu@gmail.com', role: 'admin', spaceId: 'space-1' },
-  { id: '4', name: 'Ahsan', email: 'ahsan@gmail.com', role: 'user', spaceId: 'space-1' },
-  { id: '5', name: 'User5', email: 'user5@gmail.com', role: 'user', spaceId: 'space-1' },
-  { id: '6', name: 'User6', email: 'user6@gmail.com', role: 'user', spaceId: 'space-1' },
+  { id: '1', name: 'Mahfuz', email: 'mahfuz@gmail.com', role: 'admin' },
+  { id: '2', name: 'Rakib', email: 'rakib@gmail.com', role: 'user' },
+  { id: '3', name: 'Bipu', email: 'bipu@gmail.com', role: 'admin' },
+  { id: '4', name: 'Ahsan', email: 'ahsan@gmail.com', role: 'user' },
+  { id: '5', name: 'User5', email: 'user5@gmail.com', role: 'user' },
+  { id: '6', name: 'User6', email: 'user6@gmail.com', role: 'user' },
 ];

@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 import { authenticateToken, requireHostelAccess, AuthenticatedRequest } from '../middleware/auth';
 import { getCurrentBalance, getDashboardCalculations, getRecentTransactions } from '../services/calculations';
 
@@ -307,7 +307,7 @@ router.get('/export', authenticateToken, requireHostelAccess, async (req: Authen
     const { format = 'json', startDate, endDate } = req.query;
 
     const where: { hostelId: string; date?: { gte?: Date; lte?: Date } } = { hostelId };
-    
+
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -389,32 +389,32 @@ router.get('/export', authenticateToken, requireHostelAccess, async (req: Authen
 
 function convertToCSV(data: { expenses: { id: string; description: string; amount: number; date: string; category: string }[]; deposits: { id: string; description: string; amount: number; date: string }[]; dailyCalculations: { date: string; totalExpenses: number; totalDeposits: number; netBalance: number }[] }): string {
   let csv = '';
-  
+
   // Expenses CSV
   csv += 'Expenses\n';
   csv += 'Date,Amount,Description,Category,User,Email,Created At\n';
   data.expenses.forEach((expense: { date: Date; amount: number; description: string; category: string; userName: string; userEmail: string; createdAt: Date }) => {
     csv += `${expense.date.toISOString()},${expense.amount},"${expense.description}","${expense.category}","${expense.userName}","${expense.userEmail}",${expense.createdAt.toISOString()}\n`;
   });
-  
+
   csv += '\n';
-  
+
   // Deposits CSV
   csv += 'Deposits\n';
   csv += 'Date,Amount,Description,Category,User,Email,Created At\n';
   data.deposits.forEach((deposit: { date: Date; amount: number; description: string; category: string; userName: string; userEmail: string; createdAt: Date }) => {
     csv += `${deposit.date.toISOString()},${deposit.amount},"${deposit.description}","${deposit.category}","${deposit.userName}","${deposit.userEmail}",${deposit.createdAt.toISOString()}\n`;
   });
-  
+
   csv += '\n';
-  
+
   // Calculations CSV
   csv += 'Daily Calculations\n';
   csv += 'Date,Total Expenses,Total Deposits,Net Balance\n';
   data.calculations.forEach((calc: { date: string; totalExpenses: number; totalDeposits: number; netBalance: number }) => {
     csv += `${calc.date},${calc.totalExpenses},${calc.totalDeposits},${calc.netBalance}\n`;
   });
-  
+
   return csv;
 }
 

@@ -23,7 +23,10 @@ export const generateOTP = (): string => {
 };
 
 export const sendOTP = async (email: string, otp: string): Promise<void> => {
-  // For development/testing, log the OTP instead of sending email
+  // Always log OTP in development for testing
+  console.log(`[TEST ONLY] OTP for ${email} is: ${otp}`);
+
+  // For development/testing, log the OTP instead of sending email if no transporter
   if (!transporter) {
     console.log(`Development: OTP for ${email} is: ${otp}`);
     console.log('Note: Email transporter not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env file.');

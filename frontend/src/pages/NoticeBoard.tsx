@@ -23,7 +23,7 @@ interface Notice {
 }
 
 const NoticeBoard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -66,7 +66,8 @@ const NoticeBoard: React.FC = () => {
   const setupSocket = () => {
     if (!user?.token || !user?.hostelId) return;
 
-    const newSocket = io('http://localhost:3001', {
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://127.0.0.1:3001';
+    const newSocket = io(socketUrl, {
       auth: {
         token: user.token,
       },
@@ -90,7 +91,7 @@ const NoticeBoard: React.FC = () => {
     });
 
     newSocket.on('updatedNotice', (data) => {
-      setNotices(prev => prev.map(notice => 
+      setNotices(prev => prev.map(notice =>
         notice.id === data.notice.id ? data.notice : notice
       ));
     });
@@ -123,7 +124,7 @@ const NoticeBoard: React.FC = () => {
     try {
       if (editingNotice) {
         const updated = await noticeBoardService.updateNotice(editingNotice.id, formData);
-        setNotices(prev => prev.map(notice => 
+        setNotices(prev => prev.map(notice =>
           notice.id === updated.id ? updated : notice
         ));
       } else {
@@ -194,12 +195,14 @@ const NoticeBoard: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Notice Board</h1>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Add Notice
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Add Notice
+            </button>
+          )}
         </div>
 
         {showForm && (
@@ -315,20 +318,22 @@ const NoticeBoard: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(notice)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(notice.id)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {(isAdmin || notice.createdBy === user?.id) && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(notice)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(notice.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <p className="text-gray-700 whitespace-pre-wrap">{notice.content}</p>
               </div>

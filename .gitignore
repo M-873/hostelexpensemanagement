@@ -37,3 +37,12 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent Artifacts
+.gemini/
+.agent/
+brain/
+implementation_plan.md
+walkthrough.md
+task.md
+

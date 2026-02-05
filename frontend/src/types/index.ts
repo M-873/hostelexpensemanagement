@@ -1,11 +1,10 @@
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'ADMIN' | 'USER' | 'MANAGER';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  spaceId: string;
   hostelId?: string;
   token?: string;
 }

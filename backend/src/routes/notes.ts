@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
@@ -126,7 +126,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors[0].message });
     } else {
-      res.status(500).json({ error: 'Failed to create note' });
+      return res.status(500).json({ error: 'Failed to create note' });
     }
   }
 });
@@ -151,9 +151,9 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => 
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    // Allow editing by creator only (notes are more personal)
-    if (existingNote.createdBy !== userId) {
-      return res.status(403).json({ error: 'Only the creator can edit this note' });
+    // Allow editing by creator OR hostel admin
+    if (existingNote.createdBy !== userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'You do not have permission to edit this note' });
     }
 
     const note = await prisma.note.update({

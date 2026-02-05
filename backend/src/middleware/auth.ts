@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 
 interface JwtPayload {
   userId: string;
@@ -13,8 +13,10 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    name: string;
     role: string;
-    hostelId?: string;
+    hostelId?: string | null;
+    avatar?: string | null;
   };
 }
 
@@ -32,15 +34,17 @@ export const authenticateToken = async (
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    
+
     // Verify user still exists
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
         id: true,
         email: true,
+        name: true,
         role: true,
         hostelId: true,
+        avatar: true,
       }
     });
 
@@ -49,7 +53,7 @@ export const authenticateToken = async (
     }
 
     req.user = user;
-    next();
+    return next();
   } catch (error) {
     return res.status(403).json({ error: 'Invalid token' });
   }
@@ -60,7 +64,7 @@ export const requireRole = (roles: string[]) => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-    next();
+    return next();
   };
 };
 
@@ -69,13 +73,13 @@ export const requireHostelAccess = async (
   res: Response,
   next: NextFunction
 ) => {
-  const hostelId = req.params.hostelId || req.body.hostelId;
-  
+  const hostelId = req.params.hostelId || req.body.hostelId || req.query.hostelId;
+
   if (!hostelId) {
     return res.status(400).json({ error: 'Hostel ID required' });
   }
 
-  if (req.user?.role === 'admin') {
+  if (req.user?.role === 'ADMIN') {
     return next();
   }
 
@@ -83,5 +87,5 @@ export const requireHostelAccess = async (
     return res.status(403).json({ error: 'Access denied to this hostel' });
   }
 
-  next();
+  return next();
 };

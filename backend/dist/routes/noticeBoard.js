@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const zod_1 = require("zod");
-const server_1 = require("../server");
+const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 const createNoticeSchema = zod_1.z.object({
@@ -29,7 +29,7 @@ router.get('/hostel/:hostelId', auth_1.authenticateToken, async (req, res) => {
             where.priority = priority;
         if (isActive !== undefined)
             where.isActive = isActive === 'true';
-        const notices = await server_1.prisma.noticeBoard.findMany({
+        const notices = await prisma_1.prisma.noticeBoard.findMany({
             where,
             orderBy: [
                 { priority: 'desc' },
@@ -45,17 +45,16 @@ router.get('/hostel/:hostelId', auth_1.authenticateToken, async (req, res) => {
                 }
             }
         });
-        res.json(notices);
+        return res.json(notices);
     }
     catch (error) {
-        console.error('Error fetching notices:', error);
-        res.status(500).json({ error: 'Failed to fetch notices' });
+        return res.status(500).json({ error: 'Failed to fetch notices' });
     }
 });
 router.get('/:id', auth_1.authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const notice = await server_1.prisma.noticeBoard.findUnique({
+        const notice = await prisma_1.prisma.noticeBoard.findUnique({
             where: { id },
             include: {
                 createdByUser: {
@@ -74,21 +73,24 @@ router.get('/:id', auth_1.authenticateToken, async (req, res) => {
     }
     catch (error) {
         console.error('Error fetching notice:', error);
-        res.status(500).json({ error: 'Failed to fetch notice' });
+        return res.status(500).json({ error: 'Failed to fetch notice' });
     }
 });
 router.post('/', auth_1.authenticateToken, async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
         const { title, content, priority = 'NORMAL', isActive = true } = createNoticeSchema.parse(req.body);
         const userId = req.user.id;
-        const user = await server_1.prisma.user.findUnique({
+        const user = await prisma_1.prisma.user.findUnique({
             where: { id: userId },
             select: { hostelId: true }
         });
         if (!user || !user.hostelId) {
             return res.status(400).json({ error: 'User must be associated with a hostel' });
         }
-        const notice = await server_1.prisma.noticeBoard.create({
+        const notice = await prisma_1.prisma.noticeBoard.create({
             data: {
                 title,
                 content,
@@ -129,23 +131,26 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
 router.put('/:id', auth_1.authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
+        if (!req.user) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
         const updates = updateNoticeSchema.parse(req.body);
         const userId = req.user.id;
-        const existingNotice = await server_1.prisma.noticeBoard.findUnique({
+        const existingNotice = await prisma_1.prisma.noticeBoard.findUnique({
             where: { id },
             include: { createdByUser: true }
         });
         if (!existingNotice) {
             return res.status(404).json({ error: 'Notice not found' });
         }
-        const user = await server_1.prisma.user.findUnique({
+        const user = await prisma_1.prisma.user.findUnique({
             where: { id: userId },
             select: { role: true }
         });
-        if (existingNotice.createdBy !== userId && user?.role !== 'admin') {
+        if (existingNotice.createdBy !== userId && user?.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Only the creator or admin can edit this notice' });
         }
-        const notice = await server_1.prisma.noticeBoard.update({
+        const notice = await prisma_1.prisma.noticeBoard.update({
             where: { id },
             data: {
                 ...updates,
@@ -172,33 +177,31 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
     }
     catch (error) {
         console.error('Error updating notice:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            res.status(400).json({ error: error.errors[0].message });
-        }
-        else {
-            res.status(500).json({ error: 'Failed to update notice' });
-        }
+        return res.status(500).json({ error: 'Failed to update notice' });
     }
 });
 router.delete('/:id', auth_1.authenticateToken, async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
         const { id } = req.params;
         const userId = req.user.id;
-        const existingNotice = await server_1.prisma.noticeBoard.findUnique({
+        const existingNotice = await prisma_1.prisma.noticeBoard.findUnique({
             where: { id },
             include: { createdByUser: true }
         });
         if (!existingNotice) {
             return res.status(404).json({ error: 'Notice not found' });
         }
-        const user = await server_1.prisma.user.findUnique({
+        const user = await prisma_1.prisma.user.findUnique({
             where: { id: userId },
             select: { role: true }
         });
-        if (existingNotice.createdBy !== userId && user?.role !== 'admin') {
+        if (existingNotice.createdBy !== userId && user?.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Only the creator or admin can delete this notice' });
         }
-        await server_1.prisma.noticeBoard.delete({
+        await prisma_1.prisma.noticeBoard.delete({
             where: { id }
         });
         const io = req.app.get('io');
@@ -212,7 +215,7 @@ router.delete('/:id', auth_1.authenticateToken, async (req, res) => {
     }
     catch (error) {
         console.error('Error deleting notice:', error);
-        res.status(500).json({ error: 'Failed to delete notice' });
+        return res.status(500).json({ error: 'Failed to delete notice' });
     }
 });
 exports.default = router;

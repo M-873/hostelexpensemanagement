@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const zod_1 = require("zod");
+const prisma_1 = require("../prisma");
 const server_1 = require("../server");
-const server_2 = require("../server");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 const createHostelSchema = zod_1.z.object({
@@ -26,29 +26,37 @@ const respondMembershipSchema = zod_1.z.object({
 });
 router.post('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), async (req, res) => {
     try {
-        const { name, registrationNumber, address, phone, email } = createHostelSchema.parse(req.body);
-        const existingHostel = await server_1.prisma.hostel.findUnique({
-            where: { registrationNumber },
-        });
-        if (existingHostel) {
-            return res.status(400).json({ error: 'Registration number already exists' });
+        const { name, address, phone, email } = createHostelSchema.parse(req.body);
+        let generatedRegistrationNumber = Math.floor(100000 + Math.random() * 900000).toString();
+        let isUnique = false;
+        while (!isUnique) {
+            const existing = await prisma_1.prisma.hostel.findUnique({ where: { registrationNumber: generatedRegistrationNumber } });
+            if (!existing) {
+                isUnique = true;
+            }
+            else {
+                generatedRegistrationNumber = Math.floor(100000 + Math.random() * 900000).toString();
+            }
         }
-        const hostel = await server_1.prisma.hostel.create({
+        const hostel = await prisma_1.prisma.hostel.create({
             data: {
                 name,
-                registrationNumber,
+                registrationNumber: generatedRegistrationNumber,
                 address,
                 phone,
                 email,
             },
         });
         if (req.user) {
-            await server_1.prisma.user.update({
+            await prisma_1.prisma.user.update({
                 where: { id: req.user.id },
-                data: { hostelId: hostel.id },
+                data: {
+                    hostelId: hostel.id,
+                    role: 'ADMIN'
+                },
             });
         }
-        res.status(201).json({
+        return res.status(201).json({
             message: 'Hostel created successfully',
             hostel: {
                 id: hostel.id,
@@ -66,7 +74,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), a
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Create hostel error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.get('/search/:registrationNumber', auth_1.authenticateToken, async (req, res) => {
@@ -74,7 +82,7 @@ router.get('/search/:registrationNumber', auth_1.authenticateToken, async (req, 
         const { registrationNumber } = zod_1.z.object({
             registrationNumber: zod_1.z.string().min(1),
         }).parse(req.params);
-        const hostels = await server_1.prisma.hostel.findMany({
+        const hostels = await prisma_1.prisma.hostel.findMany({
             where: {
                 registrationNumber: {
                     contains: registrationNumber,
@@ -89,22 +97,27 @@ router.get('/search/:registrationNumber', auth_1.authenticateToken, async (req, 
                 phone: true,
                 email: true,
                 createdAt: true,
+                _count: {
+                    select: {
+                        users: true,
+                    }
+                }
             },
             take: 10,
         });
-        res.json({ hostels });
+        return res.json({ hostels });
     }
     catch (error) {
         if (error instanceof zod_1.z.ZodError) {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Search hostels error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.get('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), async (req, res) => {
     try {
-        const hostels = await server_1.prisma.hostel.findMany({
+        const hostels = await prisma_1.prisma.hostel.findMany({
             select: {
                 id: true,
                 name: true,
@@ -125,11 +138,11 @@ router.get('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), as
                 createdAt: 'desc',
             },
         });
-        res.json({ hostels });
+        return res.json({ hostels });
     }
     catch (error) {
         console.error('Get hostels error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.get('/:id', auth_1.authenticateToken, auth_1.requireHostelAccess, async (req, res) => {
@@ -137,7 +150,7 @@ router.get('/:id', auth_1.authenticateToken, auth_1.requireHostelAccess, async (
         const { id } = zod_1.z.object({
             id: zod_1.z.string().uuid(),
         }).parse(req.params);
-        const hostel = await server_1.prisma.hostel.findUnique({
+        const hostel = await prisma_1.prisma.hostel.findUnique({
             where: { id },
             select: {
                 id: true,
@@ -160,14 +173,14 @@ router.get('/:id', auth_1.authenticateToken, auth_1.requireHostelAccess, async (
         if (!hostel) {
             return res.status(404).json({ error: 'Hostel not found' });
         }
-        res.json({ hostel });
+        return res.json({ hostel });
     }
     catch (error) {
         if (error instanceof zod_1.z.ZodError) {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Get hostel error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.post('/membership-request', auth_1.authenticateToken, (0, auth_1.requireRole)(['user']), async (req, res) => {
@@ -176,29 +189,29 @@ router.post('/membership-request', auth_1.authenticateToken, (0, auth_1.requireR
         if (req.user?.hostelId) {
             return res.status(400).json({ error: 'You are already a member of a hostel' });
         }
-        const hostel = await server_1.prisma.hostel.findUnique({
+        const hostel = await prisma_1.prisma.hostel.findUnique({
             where: { id: hostelId },
         });
         if (!hostel) {
             return res.status(404).json({ error: 'Hostel not found' });
         }
-        const userCount = await server_1.prisma.user.count({
+        const userCount = await prisma_1.prisma.user.count({
             where: { hostelId },
         });
         if (userCount >= 100) {
             return res.status(400).json({ error: 'Hostel has reached maximum capacity of 100 members' });
         }
-        const updatedUser = await server_1.prisma.user.update({
+        const updatedUser = await prisma_1.prisma.user.update({
             where: { id: req.user.id },
             data: { hostelId },
         });
-        server_2.io.to(`hostel-${hostelId}`).emit('member-joined', {
+        server_1.io.to(`hostel-${hostelId}`).emit('member-joined', {
             userId: req.user.id,
             userName: req.user.name,
             message: message || 'New member joined',
             timestamp: new Date().toISOString(),
         });
-        res.json({
+        return res.json({
             message: 'Membership request approved successfully',
             user: {
                 id: updatedUser.id,
@@ -213,7 +226,7 @@ router.post('/membership-request', auth_1.authenticateToken, (0, auth_1.requireR
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Membership request error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.get('/:id/members', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin', 'manager']), auth_1.requireHostelAccess, async (req, res) => {
@@ -221,7 +234,7 @@ router.get('/:id/members', auth_1.authenticateToken, (0, auth_1.requireRole)(['a
         const { id } = zod_1.z.object({
             id: zod_1.z.string().uuid(),
         }).parse(req.params);
-        const members = await server_1.prisma.user.findMany({
+        const members = await prisma_1.prisma.user.findMany({
             where: { hostelId: id },
             select: {
                 id: true,
@@ -234,14 +247,14 @@ router.get('/:id/members', auth_1.authenticateToken, (0, auth_1.requireRole)(['a
                 createdAt: 'desc',
             },
         });
-        res.json({ members });
+        return res.json({ members });
     }
     catch (error) {
         if (error instanceof zod_1.z.ZodError) {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Get members error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.put('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), auth_1.requireHostelAccess, async (req, res) => {
@@ -250,7 +263,7 @@ router.put('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']),
             id: zod_1.z.string().uuid(),
         }).parse(req.params);
         const { name, address, phone, email } = createHostelSchema.partial().parse(req.body);
-        const hostel = await server_1.prisma.hostel.update({
+        const hostel = await prisma_1.prisma.hostel.update({
             where: { id },
             data: {
                 name,
@@ -268,7 +281,7 @@ router.put('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']),
                 updatedAt: true,
             },
         });
-        res.json({
+        return res.json({
             message: 'Hostel updated successfully',
             hostel,
         });
@@ -278,7 +291,7 @@ router.put('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']),
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Update hostel error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 router.delete('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin']), async (req, res) => {
@@ -286,7 +299,7 @@ router.delete('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin'
         const { id } = zod_1.z.object({
             id: zod_1.z.string().uuid(),
         }).parse(req.params);
-        const hostel = await server_1.prisma.hostel.findUnique({
+        const hostel = await prisma_1.prisma.hostel.findUnique({
             where: { id },
             include: {
                 _count: {
@@ -311,17 +324,17 @@ router.delete('/:id', auth_1.authenticateToken, (0, auth_1.requireRole)(['admin'
                 }
             });
         }
-        await server_1.prisma.hostel.delete({
+        await prisma_1.prisma.hostel.delete({
             where: { id },
         });
-        res.json({ message: 'Hostel deleted successfully' });
+        return res.json({ message: 'Hostel deleted successfully' });
     }
     catch (error) {
         if (error instanceof zod_1.z.ZodError) {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Delete hostel error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 exports.default = router;

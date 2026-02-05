@@ -2,36 +2,24 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma as prismaClient } from '../prisma';
+const prisma = prismaClient as any;
 import { AuthRequest, AuthResponse } from '../types';
 import { generateOTP, sendOTP, verifyOTP, isOTPExpired } from '../services/otpService';
 
 const router = express.Router();
 
 const loginSchema = z.object({
-  email: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
+  email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(['admin', 'user']),
+  role: z.enum(['ADMIN', 'USER', 'MANAGER']),
 });
 
 const registerSchema = z.object({
-  email: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
+  email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
-  role: z.enum(['admin', 'user', 'manager']).optional(),
-  hostelId: z.string().uuid().optional(),
-});
-
-const otpRequestSchema = z.object({
-  email: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
-});
-
-const otpVerifySchema = z.object({
-  email: z.string().email().regex(/@gmail\.com$/, 'Must be a Gmail address'),
-  otp: z.string().length(6, 'OTP must be 6 digits'),
-  password: z.string().min(6),
-  name: z.string().min(2),
-  role: z.enum(['admin', 'user', 'manager']).optional(),
+  role: z.enum(['ADMIN', 'USER', 'MANAGER']).optional(),
   hostelId: z.string().uuid().optional(),
 });
 
@@ -59,9 +47,9 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if email is verified
-    if (!user.isEmailVerified) {
-      return res.status(401).json({ error: 'Please verify your email before logging in' });
-    }
+    // if (!user.isEmailVerified) {
+    //   return res.status(401).json({ error: 'Please verify your email before logging in' });
+    // }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -78,7 +66,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, role: user.role, hostelId: user.hostelId },
       process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' } as any
     );
 
     const response: AuthResponse = {
@@ -92,140 +80,13 @@ router.post('/login', async (req, res) => {
       },
     };
 
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Request OTP for registration
-router.post('/request-otp', async (req, res) => {
-  try {
-    const { email } = otpRequestSchema.parse(req.body);
-
-    // Check if user already exists and is verified
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'User already exists and is verified' });
-    }
-
-    // Generate OTP
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Store OTP in database (create temporary user or update existing)
-    if (existingUser) {
-      // Update existing unverified user
-      await prisma.user.update({
-        where: { email },
-        data: { otp, otpExpiry },
-      });
-    } else {
-      // Create temporary user entry (will be completed after OTP verification)
-      await prisma.user.create({
-        data: {
-          email,
-          password: '', // Will be set after OTP verification
-          name: '', // Will be set after OTP verification
-          role: 'user',
-          hostelId: '00000000-0000-0000-0000-000000000000', // Temporary UUID
-          otp,
-          otpExpiry,
-          isEmailVerified: false,
-        },
-      });
-    }
-
-    // Send OTP email
-    await sendOTP(email, otp);
-
-    res.json({ message: 'OTP sent successfully', email });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    console.error('OTP request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Verify OTP and complete registration
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { email, otp, password, name, role, hostelId } = otpVerifySchema.parse(req.body);
-
-    // Find user with OTP
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      return res.status(400).json({ error: 'User not found' });
-    }
-
-    // Check if OTP exists and is not expired
-    if (!user.otp || !user.otpExpiry) {
-      return res.status(400).json({ error: 'No OTP found' });
-    }
-
-    if (isOTPExpired(user.otpExpiry)) {
-      return res.status(400).json({ error: 'OTP expired' });
-    }
-
-    // Verify OTP
-    if (!verifyOTP(user.otp, otp)) {
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Update user with verified data
-    const updatedUser = await prisma.user.update({
-      where: { email },
-      data: {
-        password: hashedPassword,
-        name,
-        role: role || 'user',
-        hostelId,
-        otp: null,
-        otpExpiry: null,
-        isEmailVerified: true,
-      },
-    });
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: updatedUser.id, role: updatedUser.role, hostelId: updatedUser.hostelId },
-      process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    const response: AuthResponse = {
-      token,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        role: updatedUser.role,
-        hostelId: updatedUser.hostelId || undefined,
-      },
-    };
-
-    res.json(response);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    console.error('OTP verification error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -252,8 +113,9 @@ router.post('/register', async (req, res) => {
         email,
         password: hashedPassword,
         name,
-        role: role || 'user',
+        role: role || 'USER',
         hostelId,
+        isEmailVerified: true,
       },
     });
 
@@ -261,7 +123,7 @@ router.post('/register', async (req, res) => {
       token: jwt.sign(
         { userId: user.id, role: user.role, hostelId: user.hostelId },
         process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        { expiresIn: '7d' } as any
       ),
       user: {
         id: user.id,
@@ -272,13 +134,13 @@ router.post('/register', async (req, res) => {
       },
     };
 
-    res.status(201).json(response);
+    return res.status(201).json(response);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -293,7 +155,7 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-    
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -316,7 +178,7 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({
+    return res.json({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -326,6 +188,42 @@ router.get('/me', async (req, res) => {
     });
   } catch (error) {
     return res.status(403).json({ error: 'Invalid token' });
+  }
+});
+
+// Update user profile (name)
+router.put('/update-profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const { name } = z.object({ name: z.string().min(2) }).parse(req.body);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { name },
+    });
+
+    return res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        hostelId: updatedUser.hostelId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    return res.status(403).json({ error: 'Invalid token or update failed' });
   }
 });
 

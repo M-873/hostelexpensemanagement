@@ -34,7 +34,7 @@ export function Header({ title, showBack = false }: HeaderProps) {
             <img src={logoImage} alt="Hostel Expense Management" className="h-10 w-10 object-contain" />
             <span className="text-sm font-semibold text-muted-foreground">HOSTEL EXPENSE MANAGEMENT</span>
           </div>
-          
+
           {showBack && location.pathname !== '/home' && (
             <Button
               variant="ghost"
@@ -45,7 +45,7 @@ export function Header({ title, showBack = false }: HeaderProps) {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          
+
           {title && (
             <h1 className="text-2xl font-bold text-foreground">{title}</h1>
           )}
@@ -72,6 +72,10 @@ export function Header({ title, showBack = false }: HeaderProps) {
                   </span>
                 </div>
               </div>
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                My Profile
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 Log out

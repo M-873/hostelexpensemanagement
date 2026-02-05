@@ -7,80 +7,47 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/types';
 import logoImage from '@/assets/logo.png';
+import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+// import { GoogleLogin } from '@react-oauth/google';
+
+function GoogleLoginButton({ selectedRole }: { selectedRole: UserRole | null }) {
+  return (
+    <div className="w-full flex justify-center text-muted-foreground text-sm py-4 border rounded-md bg-muted/20">
+      Google Login temporarily disabled
+    </div>
+  );
+}
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showOtp, setShowOtp] = useState(false);
   const navigate = useNavigate();
 
-  const handleRequestOTP = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !selectedRole) return;
-    
+    if (!email || !password || !name || !selectedRole) return;
+
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/request-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const data = await api.post('/auth/register', {
+        email: email.toLowerCase(),
+        password,
+        name,
+        role: selectedRole,
+      } as any);
 
-      if (response.ok) {
-        setShowOtp(true);
-        alert('OTP sent to your email!');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to send OTP');
-      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      alert('Registration successful!');
+      navigate('/hostel-management');
     } catch (error) {
-      console.error('OTP request error:', error);
-      alert('Failed to send OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password || !name || !selectedRole || !otp) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp,
-          password,
-          name,
-          role: selectedRole,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        alert('Registration successful!');
-        navigate('/hostel-management');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Invalid OTP');
-      }
-    } catch (error) {
-      console.error('OTP verification error:', error);
-      alert('Failed to verify OTP. Please try again.');
+      console.error('Registration error:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Registration failed'}`);
     } finally {
       setIsLoading(false);
     }
@@ -92,9 +59,9 @@ export default function Register() {
         {/* Logo */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <img 
-              src={logoImage} 
-              alt="Hostel Expense Management" 
+            <img
+              src={logoImage}
+              alt="Hostel Expense Management"
               className="h-16 w-16 object-contain rounded-2xl shadow-lg"
             />
           </div>
@@ -111,151 +78,116 @@ export default function Register() {
             <CardDescription>Create your account to get started</CardDescription>
           </CardHeader>
           <CardContent>
-            {!showOtp ? (
-              <form onSubmit={handleRequestOTP} className="space-y-6">
-                {/* Role Selection */}
-                <div className="space-y-3">
-                  <Label>Select Role</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRole('admin')}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        selectedRole === 'admin'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
+            <form onSubmit={handleRegister} className="space-y-6">
+              {/* Role Selection */}
+              <div className="space-y-3">
+                <div className="flex justify-center w-full mb-4">
+                  <GoogleLoginButton selectedRole={selectedRole} />
+                </div>
+
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or sign up with email
+                    </span>
+                  </div>
+                </div>
+
+                <Label>Select Role</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('ADMIN')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${selectedRole === 'ADMIN'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
                       }`}
-                    >
-                      <Shield className={`h-8 w-8 ${selectedRole === 'admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-semibold ${selectedRole === 'admin' ? 'text-primary' : 'text-foreground'}`}>
-                        Admin
-                      </span>
-                      <span className="text-xs text-muted-foreground">Edit Access</span>
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRole('user')}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        selectedRole === 'user'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
+                  >
+                    <Shield className={`h-8 w-8 ${selectedRole === 'ADMIN' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`font-semibold ${selectedRole === 'ADMIN' ? 'text-primary' : 'text-foreground'}`}>
+                      Admin
+                    </span>
+                    <span className="text-xs text-muted-foreground">Edit Access</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('USER')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${selectedRole === 'USER'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
                       }`}
-                    >
-                      <User className={`h-8 w-8 ${selectedRole === 'user' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-semibold ${selectedRole === 'user' ? 'text-primary' : 'text-foreground'}`}>
-                        User
-                      </span>
-                      <span className="text-xs text-muted-foreground">View Only</span>
-                    </button>
-                  </div>
+                  >
+                    <User className={`h-8 w-8 ${selectedRole === 'USER' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`font-semibold ${selectedRole === 'USER' ? 'text-primary' : 'text-foreground'}`}>
+                      User
+                    </span>
+                    <span className="text-xs text-muted-foreground">View Only</span>
+                  </button>
                 </div>
+              </div>
 
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email (Gmail only)</Label>
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
+                    className="pr-10"
                   />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
+              </div>
 
-                {/* Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {/* Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={!selectedRole || !email || !password || !name || isLoading}
-                >
-                  {isLoading ? 'Sending OTP...' : 'Send OTP'}
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOTP} className="space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="flex justify-center">
-                    <Mail className="h-12 w-12 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground">Enter OTP</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We've sent a 6-digit code to {email}
-                  </p>
-                </div>
-
-                {/* OTP Input */}
-                <div className="space-y-2">
-                  <Label htmlFor="otp">OTP Code</Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    maxLength={6}
-                    pattern="[0-9]{6}"
-                    required
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={!otp || otp.length !== 6 || isLoading}
-                >
-                  {isLoading ? 'Verifying...' : 'Verify OTP'}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setShowOtp(false)}
-                  disabled={isLoading}
-                >
-                  Back
-                </Button>
-              </form>
-            )}
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={!selectedRole || !email || !password || !name || isLoading}
+              >
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 

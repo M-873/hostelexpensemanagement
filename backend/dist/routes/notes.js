@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const zod_1 = require("zod");
-const server_1 = require("../server");
+const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 const createNoteSchema = zod_1.z.object({
@@ -29,7 +29,7 @@ router.get('/hostel/:hostelId', auth_1.authenticateToken, async (req, res) => {
             where.category = category;
         if (isPublic !== undefined)
             where.isPublic = isPublic === 'true';
-        const notes = await server_1.prisma.note.findMany({
+        const notes = await prisma_1.prisma.note.findMany({
             where,
             orderBy: [
                 { category: 'asc' },
@@ -55,7 +55,7 @@ router.get('/hostel/:hostelId', auth_1.authenticateToken, async (req, res) => {
 router.get('/:id', auth_1.authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const note = await server_1.prisma.note.findUnique({
+        const note = await prisma_1.prisma.note.findUnique({
             where: { id },
             include: {
                 createdByUser: {
@@ -84,14 +84,14 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
         }
         const { title, content, category = 'GENERAL', isPublic = true } = createNoteSchema.parse(req.body);
         const userId = req.user.id;
-        const user = await server_1.prisma.user.findUnique({
+        const user = await prisma_1.prisma.user.findUnique({
             where: { id: userId },
             select: { hostelId: true }
         });
         if (!user || !user.hostelId) {
             return res.status(400).json({ error: 'User must be associated with a hostel' });
         }
-        const note = await server_1.prisma.note.create({
+        const note = await prisma_1.prisma.note.create({
             data: {
                 title,
                 content,
@@ -118,7 +118,7 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
             res.status(400).json({ error: error.errors[0].message });
         }
         else {
-            res.status(500).json({ error: 'Failed to create note' });
+            return res.status(500).json({ error: 'Failed to create note' });
         }
     }
 });
@@ -130,17 +130,17 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
         const { id } = req.params;
         const updates = updateNoteSchema.parse(req.body);
         const userId = req.user.id;
-        const existingNote = await server_1.prisma.note.findUnique({
+        const existingNote = await prisma_1.prisma.note.findUnique({
             where: { id },
             include: { createdByUser: true }
         });
         if (!existingNote) {
             return res.status(404).json({ error: 'Note not found' });
         }
-        if (existingNote.createdBy !== userId) {
-            return res.status(403).json({ error: 'Only the creator can edit this note' });
+        if (existingNote.createdBy !== userId && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'You do not have permission to edit this note' });
         }
-        const note = await server_1.prisma.note.update({
+        const note = await prisma_1.prisma.note.update({
             where: { id },
             data: {
                 ...updates,
@@ -175,7 +175,7 @@ router.delete('/:id', auth_1.authenticateToken, async (req, res) => {
         }
         const { id } = req.params;
         const userId = req.user.id;
-        const existingNote = await server_1.prisma.note.findUnique({
+        const existingNote = await prisma_1.prisma.note.findUnique({
             where: { id },
             include: { createdByUser: true }
         });
@@ -185,7 +185,7 @@ router.delete('/:id', auth_1.authenticateToken, async (req, res) => {
         if (existingNote.createdBy !== userId) {
             return res.status(403).json({ error: 'Only the creator can delete this note' });
         }
-        await server_1.prisma.note.delete({
+        await prisma_1.prisma.note.delete({
             where: { id }
         });
         return res.json({ message: 'Note deleted successfully' });

@@ -1,0 +1,6 @@
+hostel-expense-management/
+├── frontend/          # React + Vite (deploys to Vercel)
+├── backend/           # Node.js + Express + Prisma (deploys to Render)
+├── scripts/           # Setup and deployment scripts
+├── .github/workflows/ # CI/CD with folder-based triggers
+└── DEPLOYMENT.md      # Deployment documentation

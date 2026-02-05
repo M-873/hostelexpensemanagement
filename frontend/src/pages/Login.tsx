@@ -8,6 +8,19 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/types';
 import logoImage from '@/assets/logo.png';
+// import { GoogleLogin } from '@react-oauth/google';
+
+function GoogleLoginWrapper({ selectedRole }: { selectedRole: UserRole | null }) {
+  return (
+    <div className="w-full flex justify-center text-muted-foreground text-sm py-4 border rounded-md bg-muted/20">
+      Google Login temporarily disabled
+    </div>
+  );
+}
+
+function GoogleLoginButton({ selectedRole }: { selectedRole: UserRole | null }) {
+  return null;
+}
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -21,7 +34,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRole) return;
-    
+
     setIsLoading(true);
     try {
       const success = await login(email, password, selectedRole);
@@ -40,9 +53,9 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <img 
-              src={logoImage} 
-              alt="Hostel Expense Management" 
+            <img
+              src={logoImage}
+              alt="Hostel Expense Management"
               className="h-16 w-16 object-contain rounded-2xl shadow-lg"
             />
           </div>
@@ -66,31 +79,29 @@ export default function Login() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedRole('admin')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                      selectedRole === 'admin'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                    }`}
+                    onClick={() => setSelectedRole('ADMIN')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${selectedRole === 'ADMIN'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                      }`}
                   >
-                    <Shield className={`h-8 w-8 ${selectedRole === 'admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`font-semibold ${selectedRole === 'admin' ? 'text-primary' : 'text-foreground'}`}>
+                    <Shield className={`h-8 w-8 ${selectedRole === 'ADMIN' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`font-semibold ${selectedRole === 'ADMIN' ? 'text-primary' : 'text-foreground'}`}>
                       Admin
                     </span>
                     <span className="text-xs text-muted-foreground">Edit Access</span>
                   </button>
-                  
+
                   <button
                     type="button"
-                    onClick={() => setSelectedRole('user')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                      selectedRole === 'user'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                    }`}
+                    onClick={() => setSelectedRole('USER')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${selectedRole === 'USER'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                      }`}
                   >
-                    <User className={`h-8 w-8 ${selectedRole === 'user' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`font-semibold ${selectedRole === 'user' ? 'text-primary' : 'text-foreground'}`}>
+                    <User className={`h-8 w-8 ${selectedRole === 'USER' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`font-semibold ${selectedRole === 'USER' ? 'text-primary' : 'text-foreground'}`}>
                       User
                     </span>
                     <span className="text-xs text-muted-foreground">View Only</span>
@@ -111,7 +122,7 @@ export default function Login() {
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
@@ -142,6 +153,21 @@ export default function Login() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLoginWrapper selectedRole={selectedRole} />
               </div>
 
               <Button

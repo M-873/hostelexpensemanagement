@@ -1,8 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 import { io } from '../server';
-import { authenticateToken, requireHostelAccess, AuthenticatedRequest } from '../middleware/auth';
+import { authenticateToken, requireRole, requireHostelAccess, AuthenticatedRequest } from '../middleware/auth';
 import { calculateDailyTotals, triggerRealTimeUpdate } from '../services/calculations';
 
 const router = express.Router();
@@ -28,13 +28,13 @@ const updateDepositSchema = z.object({
 router.get('/', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
   try {
     const { page = 1, limit = 20, category, startDate, endDate } = req.query;
-    const hostelId = req.query.hostelId as string;
+    const hostelId = req.query.hostelId as unknown as string;
 
     const skip = (Number(page) - 1) * Number(limit);
     const where: { hostelId: string; category?: string; date?: { gte?: Date; lte?: Date } } = { hostelId };
 
     if (category) {
-      where.category = category;
+      where.category = category as string;
     }
 
     if (startDate || endDate) {
@@ -48,7 +48,7 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
     }
 
     const [deposits, total] = await Promise.all([
-      prisma.deposit.findMany({
+      (prisma.deposit as any).findMany({
         where,
         include: {
           user: {
@@ -66,10 +66,11 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
       prisma.deposit.count({ where }),
     ]);
 
-    res.json({
+    return res.json({
       deposits: deposits.map(deposit => ({
         ...deposit,
-        amount: deposit.amount.toNumber(),
+        amount: (deposit as any).amount.toNumber(),
+        category: (deposit as any).category,
       })),
       pagination: {
         page: Number(page),
@@ -80,16 +81,16 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
     });
   } catch (error) {
     console.error('Get deposits error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Create a new deposit
-router.post('/', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.post('/', authenticateToken, requireRole(['ADMIN']), requireHostelAccess, async (req: AuthenticatedRequest, res) => {
   try {
     const { amount, description, category, date, hostelId } = createDepositSchema.parse(req.body);
 
-    const deposit = await prisma.deposit.create({
+    const deposit = await (prisma.deposit as any).create({
       data: {
         amount,
         description,
@@ -122,7 +123,7 @@ router.post('/', authenticateToken, requireHostelAccess, async (req: Authenticat
       ...updateData,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: 'Deposit created successfully',
       deposit: {
         ...deposit,
@@ -134,7 +135,7 @@ router.post('/', authenticateToken, requireHostelAccess, async (req: Authenticat
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Create deposit error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -161,7 +162,7 @@ router.get('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       return res.status(404).json({ error: 'Deposit not found' });
     }
 
-    res.json({
+    return res.json({
       deposit: {
         ...deposit,
         amount: deposit.amount.toNumber(),
@@ -172,12 +173,12 @@ router.get('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Get deposit error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Update deposit
-router.put('/:id', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.put('/:id', authenticateToken, requireRole(['ADMIN']), requireHostelAccess, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const { amount, description, category, date } = updateDepositSchema.parse(req.body);
@@ -192,7 +193,7 @@ router.put('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       return res.status(404).json({ error: 'Deposit not found' });
     }
 
-    const deposit = await prisma.deposit.update({
+    const deposit = await (prisma.deposit as any).update({
       where: { id },
       data: {
         amount,
@@ -227,7 +228,7 @@ router.put('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       ...updateData,
     });
 
-    res.json({
+    return res.json({
       message: 'Deposit updated successfully',
       deposit: {
         ...deposit,
@@ -239,12 +240,12 @@ router.put('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Update deposit error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Delete deposit
-router.delete('/:id', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', authenticateToken, requireRole(['ADMIN']), requireHostelAccess, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const hostelId = req.query.hostelId as string;
@@ -272,13 +273,13 @@ router.delete('/:id', authenticateToken, requireHostelAccess, async (req: Authen
       ...updateData,
     });
 
-    res.json({ message: 'Deposit deleted successfully' });
+    return res.json({ message: 'Deposit deleted successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Delete deposit error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -286,7 +287,7 @@ router.delete('/:id', authenticateToken, requireHostelAccess, async (req: Authen
 router.get('/categories', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const hostelId = req.query.hostelId as string;
-    
+
     if (!hostelId) {
       return res.status(400).json({ error: 'Hostel ID required' });
     }
@@ -295,16 +296,16 @@ router.get('/categories', authenticateToken, async (req: AuthenticatedRequest, r
       where: { hostelId },
       select: {
         category: true,
-      },
+      } as any,
       distinct: ['category'],
     });
 
-    res.json({
-      categories: categories.map(c => c.category),
+    return res.json({
+      categories: categories.map((c: any) => c.category),
     });
   } catch (error) {
     console.error('Get categories error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -315,7 +316,7 @@ router.get('/summary/category', authenticateToken, requireHostelAccess, async (r
     const { startDate, endDate } = req.query;
 
     const where: { hostelId: string; date?: { gte?: Date; lte?: Date } } = { hostelId };
-    
+
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -326,27 +327,27 @@ router.get('/summary/category', authenticateToken, requireHostelAccess, async (r
       }
     }
 
-    const summary = await prisma.deposit.groupBy({
+    const summary = await (prisma.deposit as any).groupBy({
       by: ['category'],
       where,
       _sum: {
         amount: true,
       },
       _count: {
-        amount: true,
+        id: true,
       },
     });
 
-    res.json({
-      summary: summary.map(item => ({
+    return res.json({
+      summary: summary.map((item: any) => ({
         category: item.category,
-        totalAmount: item._sum.amount.toNumber(),
-        count: item._count.amount,
+        totalAmount: item._sum?.amount ? Number(item._sum.amount) : 0,
+        count: item._count?.id || 0,
       })),
     });
   } catch (error) {
     console.error('Get category summary error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

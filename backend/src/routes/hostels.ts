@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 import { io } from '../server';
 import { authenticateToken, requireRole, requireHostelAccess, AuthenticatedRequest } from '../middleware/auth';
 
@@ -30,37 +30,45 @@ const respondMembershipSchema = z.object({
 // Create a new hostel (Admin only)
 router.post('/', authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
   try {
-    const { name, registrationNumber, address, phone, email } = createHostelSchema.parse(req.body);
+    const { name, address, phone, email } = createHostelSchema.parse(req.body);
 
-    // Check if registration number already exists
-    const existingHostel = await prisma.hostel.findUnique({
-      where: { registrationNumber },
-    });
+    // Generate a unique 6-digit registration number
+    let generatedRegistrationNumber = Math.floor(100000 + Math.random() * 900000).toString();
 
-    if (existingHostel) {
-      return res.status(400).json({ error: 'Registration number already exists' });
+    // Ensure uniqueness
+    let isUnique = false;
+    while (!isUnique) {
+      const existing = await prisma.hostel.findUnique({ where: { registrationNumber: generatedRegistrationNumber } });
+      if (!existing) {
+        isUnique = true;
+      } else {
+        generatedRegistrationNumber = Math.floor(100000 + Math.random() * 900000).toString();
+      }
     }
 
     // Create the hostel
     const hostel = await prisma.hostel.create({
       data: {
         name,
-        registrationNumber,
+        registrationNumber: generatedRegistrationNumber,
         address,
         phone,
         email,
       },
     });
 
-    // Associate the admin user with this hostel
+    // Associate the admin user with this hostel and ensure their role is ADMIN
     if (req.user) {
       await prisma.user.update({
         where: { id: req.user.id },
-        data: { hostelId: hostel.id },
+        data: {
+          hostelId: hostel.id,
+          role: 'ADMIN' // Ensure user who registers hostel is Admin
+        },
       });
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       message: 'Hostel created successfully',
       hostel: {
         id: hostel.id,
@@ -77,7 +85,7 @@ router.post('/', authenticateToken, requireRole(['admin']), async (req: Authenti
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Create hostel error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -103,17 +111,22 @@ router.get('/search/:registrationNumber', authenticateToken, async (req: Authent
         phone: true,
         email: true,
         createdAt: true,
+        _count: {
+          select: {
+            users: true,
+          }
+        }
       },
       take: 10, // Limit results
     });
 
-    res.json({ hostels });
+    return res.json({ hostels });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Search hostels error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -142,10 +155,10 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req: Authentic
       },
     });
 
-    res.json({ hostels });
+    return res.json({ hostels });
   } catch (error) {
     console.error('Get hostels error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -181,13 +194,13 @@ router.get('/:id', authenticateToken, requireHostelAccess, async (req: Authentic
       return res.status(404).json({ error: 'Hostel not found' });
     }
 
-    res.json({ hostel });
+    return res.json({ hostel });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Get hostel error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -229,12 +242,12 @@ router.post('/membership-request', authenticateToken, requireRole(['user']), asy
     // Emit real-time update to hostel members
     io.to(`hostel-${hostelId}`).emit('member-joined', {
       userId: req.user!.id,
-      userName: req.user!.name,
+      userName: (req.user as any).name,
       message: message || 'New member joined',
       timestamp: new Date().toISOString(),
     });
 
-    res.json({
+    return res.json({
       message: 'Membership request approved successfully',
       user: {
         id: updatedUser.id,
@@ -248,7 +261,7 @@ router.post('/membership-request', authenticateToken, requireRole(['user']), asy
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Membership request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -273,13 +286,13 @@ router.get('/:id/members', authenticateToken, requireRole(['admin', 'manager']),
       },
     });
 
-    res.json({ members });
+    return res.json({ members });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Get members error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -311,7 +324,7 @@ router.put('/:id', authenticateToken, requireRole(['admin']), requireHostelAcces
       },
     });
 
-    res.json({
+    return res.json({
       message: 'Hostel updated successfully',
       hostel,
     });
@@ -320,7 +333,7 @@ router.put('/:id', authenticateToken, requireRole(['admin']), requireHostelAcces
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Update hostel error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -351,7 +364,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req: Aut
 
     // Check if hostel has data (soft delete approach)
     if (hostel._count.users > 0 || hostel._count.expenses > 0 || hostel._count.deposits > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Cannot delete hostel with existing data',
         details: {
           users: hostel._count.users,
@@ -365,13 +378,13 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req: Aut
       where: { id },
     });
 
-    res.json({ message: 'Hostel deleted successfully' });
+    return res.json({ message: 'Hostel deleted successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Delete hostel error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

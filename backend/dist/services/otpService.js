@@ -56,6 +56,7 @@ const generateOTP = () => {
 };
 exports.generateOTP = generateOTP;
 const sendOTP = async (email, otp) => {
+    console.log(`[TEST ONLY] OTP for ${email} is: ${otp}`);
     if (!transporter) {
         console.log(`Development: OTP for ${email} is: ${otp}`);
         console.log('Note: Email transporter not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env file.');

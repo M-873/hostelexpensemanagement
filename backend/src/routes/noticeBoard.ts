@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../prisma';
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
@@ -26,8 +26,8 @@ router.get('/hostel/:hostelId', authenticateToken, async (req, res) => {
     const { hostelId } = req.params;
     const { priority, isActive } = req.query;
 
-    const where: { hostelId: string; priority?: string; isActive?: boolean } = { hostelId };
-    if (priority) where.priority = priority;
+    const where: any = { hostelId };
+    if (priority) where.priority = priority as string;
     if (isActive !== undefined) where.isActive = isActive === 'true';
 
     const notices = await prisma.noticeBoard.findMany({
@@ -47,10 +47,9 @@ router.get('/hostel/:hostelId', authenticateToken, async (req, res) => {
       }
     });
 
-    res.json(notices);
+    return res.json(notices);
   } catch (error) {
-    console.error('Error fetching notices:', error);
-    res.status(500).json({ error: 'Failed to fetch notices' });
+    return res.status(500).json({ error: 'Failed to fetch notices' });
   }
 });
 
@@ -79,13 +78,16 @@ router.get('/:id', authenticateToken, async (req, res) => {
     return res.json(notice);
   } catch (error) {
     console.error('Error fetching notice:', error);
-    res.status(500).json({ error: 'Failed to fetch notice' });
+    return res.status(500).json({ error: 'Failed to fetch notice' });
   }
 });
 
 // Create a new notice
 router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const { title, content, priority = 'NORMAL', isActive = true } = createNoticeSchema.parse(req.body);
     const userId = req.user.id;
     const user = await prisma.user.findUnique({
@@ -141,6 +143,9 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
 router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const updates = updateNoticeSchema.parse(req.body);
     const userId = req.user.id;
 
@@ -160,7 +165,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => 
       select: { role: true }
     });
 
-    if (existingNotice.createdBy !== userId && user?.role !== 'admin') {
+    if (existingNotice.createdBy !== userId && user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Only the creator or admin can edit this notice' });
     }
 
@@ -193,17 +198,16 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => 
     return res.json(notice);
   } catch (error) {
     console.error('Error updating notice:', error);
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ error: error.errors[0].message });
-    } else {
-      res.status(500).json({ error: 'Failed to update notice' });
-    }
+    return res.status(500).json({ error: 'Failed to update notice' });
   }
 });
 
 // Delete a notice
 router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -223,7 +227,7 @@ router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) 
       select: { role: true }
     });
 
-    if (existingNotice.createdBy !== userId && user?.role !== 'admin') {
+    if (existingNotice.createdBy !== userId && user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Only the creator or admin can delete this notice' });
     }
 
@@ -243,7 +247,7 @@ router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) 
     return res.json({ message: 'Notice deleted successfully' });
   } catch (error) {
     console.error('Error deleting notice:', error);
-    res.status(500).json({ error: 'Failed to delete notice' });
+    return res.status(500).json({ error: 'Failed to delete notice' });
   }
 });
 

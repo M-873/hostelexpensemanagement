@@ -38,27 +38,27 @@ export const noticeBoardService = {
     const params = new URLSearchParams();
     if (priority) params.append('priority', priority);
     if (isActive !== undefined) params.append('isActive', isActive.toString());
-    
+
     const response = await api.get(`/notices/hostel/${hostelId}?${params.toString()}`);
-    return response.data;
+    return response as any;
   },
 
   // Get a specific notice
   getNotice: async (id: string): Promise<Notice> => {
     const response = await api.get(`/notices/${id}`);
-    return response.data;
+    return response as any;
   },
 
   // Create a new notice
   createNotice: async (data: CreateNoticeData): Promise<Notice> => {
     const response = await api.post('/notices', data);
-    return response.data;
+    return response as any;
   },
 
   // Update a notice
   updateNotice: async (id: string, data: UpdateNoticeData): Promise<Notice> => {
     const response = await api.put(`/notices/${id}`, data);
-    return response.data;
+    return response as any;
   },
 
   // Delete a notice

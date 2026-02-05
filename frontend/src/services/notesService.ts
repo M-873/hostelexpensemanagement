@@ -38,27 +38,27 @@ export const notesService = {
     const params = new URLSearchParams();
     if (category) params.append('category', category);
     if (isPublic !== undefined) params.append('isPublic', isPublic.toString());
-    
+
     const response = await api.get(`/notes/hostel/${hostelId}?${params.toString()}`);
-    return response.data;
+    return response as any;
   },
 
   // Get a specific note
   getNote: async (id: string): Promise<Note> => {
     const response = await api.get(`/notes/${id}`);
-    return response.data;
+    return response as any;
   },
 
   // Create a new note
   createNote: async (data: CreateNoteData): Promise<Note> => {
     const response = await api.post('/notes', data);
-    return response.data;
+    return response as any;
   },
 
   // Update a note
   updateNote: async (id: string, data: UpdateNoteData): Promise<Note> => {
     const response = await api.put(`/notes/${id}`, data);
-    return response.data;
+    return response as any;
   },
 
   // Delete a note

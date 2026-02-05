@@ -17,6 +17,7 @@ import Summary from "./pages/Summary";
 import ControlPanel from "./pages/ControlPanel";
 import NoticeBoard from "./pages/NoticeBoard";
 import Notes from "./pages/Notes";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

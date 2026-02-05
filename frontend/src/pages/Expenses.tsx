@@ -6,12 +6,13 @@ import { useData } from '@/contexts/DataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/components/ui/use-toast';
 
 export default function Expenses() {
   const { isAdmin } = useAuth();
-  const { expenses, members, updateMeal, updateBazarAmount } = useData();
-  
-  const [editingCell, setEditingCell] = useState<{dateIndex: number, type: 'meal' | 'bazar', member?: string} | null>(null);
+  const { expenses, members, updateMeal, updateBazarAmount, addEntry, isLoading } = useData();
+
+  const [editingCell, setEditingCell] = useState<{ dateIndex: number, type: 'meal' | 'bazar', member?: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
   const handleEditClick = (dateIndex: number, type: 'meal' | 'bazar', member?: string, currentValue?: number) => {
@@ -21,10 +22,10 @@ export default function Expenses() {
 
   const handleSave = () => {
     if (!editingCell) return;
-    
+
     const { dateIndex, type, member } = editingCell;
     const value = parseInt(editValue) || 0;
-    
+
     if (type === 'meal' && member) {
       const currentMeals = expenses[dateIndex].meals[member] || 0;
       const delta = value - currentMeals;
@@ -34,7 +35,7 @@ export default function Expenses() {
     } else if (type === 'bazar') {
       updateBazarAmount(dateIndex, editValue);
     }
-    
+
     setEditingCell(null);
     setEditValue('');
   };
@@ -51,12 +52,29 @@ export default function Expenses() {
         <div className="flex items-center justify-between">
           <h2 className="section-header">Daily Expense Tracker</h2>
           {isAdmin && (
-            <Button size="sm" className="gap-2">
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                if (!expenses.find(e => e.date === today)) {
+                  addEntry(today);
+                } else {
+                  toast({ title: "Notice", description: "Entry for today already exists." });
+                }
+              }}
+            >
               <Plus className="h-4 w-4" />
               Add Entry
             </Button>
           )}
         </div>
+
+        {isLoading && (
+          <div className="flex justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        )}
 
         {/* Expense Table - Transposed: Members as rows, Dates as columns */}
         <Card>
@@ -137,7 +155,7 @@ export default function Expenses() {
                                   >
                                     <Minus className="h-3 w-3" />
                                   </Button>
-                                  <span 
+                                  <span
                                     className="w-6 text-center font-medium cursor-pointer hover:bg-muted/50 rounded px-1 flex items-center justify-center gap-1"
                                     onClick={() => handleEditClick(index, 'meal', member, expense.meals[member] || 0)}
                                   >
@@ -163,7 +181,7 @@ export default function Expenses() {
                       </tr>
                     );
                   })}
-                  
+
                   {/* Summary rows */}
                   <tr className="bg-muted/30 border-t-2">
                     <td className="sticky left-0 bg-muted/30 z-10 font-semibold border-r">Total Meals</td>
@@ -210,7 +228,7 @@ export default function Expenses() {
                               </Button>
                             </div>
                           ) : (
-                            <span 
+                            <span
                               className="cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
                               onClick={() => handleEditClick(index, 'bazar', undefined, expense.bazarAmount || 0)}
                             >

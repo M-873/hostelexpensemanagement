@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const server_1 = require("../server");
+const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
 const calculations_1 = require("../services/calculations");
 const router = express_1.default.Router();
@@ -17,7 +17,7 @@ router.get('/overview', auth_1.authenticateToken, auth_1.requireHostelAccess, as
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         const [todayTotals, yesterdayTotals, recentTransactions, hostelStats] = await Promise.all([
-            server_1.prisma.dailyCalculation.findUnique({
+            prisma_1.prisma.dailyCalculation.findUnique({
                 where: {
                     hostelId_date: {
                         hostelId,
@@ -25,7 +25,7 @@ router.get('/overview', auth_1.authenticateToken, auth_1.requireHostelAccess, as
                     },
                 },
             }),
-            server_1.prisma.dailyCalculation.findUnique({
+            prisma_1.prisma.dailyCalculation.findUnique({
                 where: {
                     hostelId_date: {
                         hostelId,
@@ -34,7 +34,7 @@ router.get('/overview', auth_1.authenticateToken, auth_1.requireHostelAccess, as
                 },
             }),
             (0, calculations_1.getRecentTransactions)(hostelId, 10),
-            server_1.prisma.hostel.findUnique({
+            prisma_1.prisma.hostel.findUnique({
                 where: { id: hostelId },
                 select: {
                     id: true,
@@ -79,7 +79,7 @@ router.get('/charts', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
         const hostelId = req.query.hostelId;
         const { days = 30 } = req.query;
         const dashboardCalculations = await (0, calculations_1.getDashboardCalculations)(hostelId, Number(days));
-        const expenseCategories = await server_1.prisma.expense.groupBy({
+        const expenseCategories = await prisma_1.prisma.expense.groupBy({
             by: ['category'],
             where: {
                 hostelId,
@@ -91,7 +91,7 @@ router.get('/charts', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
                 amount: true,
             },
         });
-        const depositCategories = await server_1.prisma.deposit.groupBy({
+        const depositCategories = await prisma_1.prisma.deposit.groupBy({
             by: ['category'],
             where: {
                 hostelId,
@@ -129,7 +129,7 @@ router.get('/summary', auth_1.authenticateToken, auth_1.requireHostelAccess, asy
         const startDate = new Date(Number(year), Number(month) - 1, 1);
         const endDate = new Date(Number(year), Number(month), 0);
         const [monthlyCalculations, expenseCategories, depositCategories, memberStats] = await Promise.all([
-            server_1.prisma.dailyCalculation.findMany({
+            prisma_1.prisma.dailyCalculation.findMany({
                 where: {
                     hostelId,
                     date: {
@@ -141,7 +141,7 @@ router.get('/summary', auth_1.authenticateToken, auth_1.requireHostelAccess, asy
                     date: 'asc',
                 },
             }),
-            server_1.prisma.expense.groupBy({
+            prisma_1.prisma.expense.groupBy({
                 by: ['category'],
                 where: {
                     hostelId,
@@ -157,7 +157,7 @@ router.get('/summary', auth_1.authenticateToken, auth_1.requireHostelAccess, asy
                     amount: true,
                 },
             }),
-            server_1.prisma.deposit.groupBy({
+            prisma_1.prisma.deposit.groupBy({
                 by: ['category'],
                 where: {
                     hostelId,
@@ -173,7 +173,7 @@ router.get('/summary', auth_1.authenticateToken, auth_1.requireHostelAccess, asy
                     amount: true,
                 },
             }),
-            server_1.prisma.user.findMany({
+            prisma_1.prisma.user.findMany({
                 where: {
                     hostelId,
                     createdAt: {
@@ -234,7 +234,7 @@ router.get('/realtime', auth_1.authenticateToken, auth_1.requireHostelAccess, as
         const [currentBalance, recentTransactions, todayTotals] = await Promise.all([
             (0, calculations_1.getCurrentBalance)(hostelId),
             (0, calculations_1.getRecentTransactions)(hostelId, 5),
-            server_1.prisma.dailyCalculation.findUnique({
+            prisma_1.prisma.dailyCalculation.findUnique({
                 where: {
                     hostelId_date: {
                         hostelId,
@@ -276,7 +276,7 @@ router.get('/export', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
             }
         }
         const [expenses, deposits, calculations] = await Promise.all([
-            server_1.prisma.expense.findMany({
+            prisma_1.prisma.expense.findMany({
                 where,
                 include: {
                     user: {
@@ -288,7 +288,7 @@ router.get('/export', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
                 },
                 orderBy: { date: 'desc' },
             }),
-            server_1.prisma.deposit.findMany({
+            prisma_1.prisma.deposit.findMany({
                 where,
                 include: {
                     user: {
@@ -300,7 +300,7 @@ router.get('/export', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
                 },
                 orderBy: { date: 'desc' },
             }),
-            server_1.prisma.dailyCalculation.findMany({
+            prisma_1.prisma.dailyCalculation.findMany({
                 where,
                 orderBy: { date: 'desc' },
             }),

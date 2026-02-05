@@ -8,6 +8,7 @@ import { mockSummary } from '@/data/mockData';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { toast } from '@/hooks/use-toast';
+import { api } from '@/services/api';
 
 interface SummaryData {
   totalMeals: number;
@@ -41,32 +42,22 @@ export default function Home() {
   // Fetch real-time dashboard data
   const fetchDashboardData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/dashboard/overview?hostelId=${user?.hostelId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const data = await api.get(`/dashboard/overview?hostelId=${user?.hostelId}`);
+      const overview = data.overview;
+
+      setSummary({
+        totalMeals: overview.hostel?._count?.expenses || 0,
+        totalExpense: overview.today?.totalExpenses || 0,
+        totalDeposit: overview.today?.totalDeposits || 0,
+        perMealCost: overview.today?.totalExpenses && overview.hostel?._count?.expenses
+          ? overview.today.totalExpenses / overview.hostel._count.expenses
+          : 0,
+        currentBalance: overview.currentBalance || 0,
+        todayExpense: overview.today?.totalExpenses || 0,
+        todayDeposit: overview.today?.totalDeposits || 0,
+        yesterdayExpense: overview.yesterday?.totalExpenses || 0,
+        yesterdayDeposit: overview.yesterday?.totalDeposits || 0,
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const overview = data.overview;
-        
-        setSummary({
-          totalMeals: overview.hostel?._count?.expenses || 0,
-          totalExpense: overview.today?.totalExpenses || 0,
-          totalDeposit: overview.today?.totalDeposits || 0,
-          perMealCost: overview.today?.totalExpenses && overview.hostel?._count?.expenses 
-            ? overview.today.totalExpenses / overview.hostel._count.expenses 
-            : 0,
-          currentBalance: overview.currentBalance || 0,
-          todayExpense: overview.today?.totalExpenses || 0,
-          todayDeposit: overview.today?.totalDeposits || 0,
-          yesterdayExpense: overview.yesterday?.totalExpenses || 0,
-          yesterdayDeposit: overview.yesterday?.totalDeposits || 0,
-        });
-      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     }
@@ -76,7 +67,8 @@ export default function Home() {
   useEffect(() => {
     if (!user?.hostelId) return;
 
-    const newSocket = io('http://localhost:3001', {
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://127.0.0.1:3001';
+    const newSocket = io(socketUrl, {
       auth: {
         token: localStorage.getItem('token'),
       },

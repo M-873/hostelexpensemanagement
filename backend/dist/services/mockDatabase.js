@@ -22,6 +22,9 @@ const mockUsers = [
         name: 'Admin User',
         role: 'admin',
         hostelId: '550e8400-e29b-41d4-a716-446655440000',
+        isEmailVerified: true,
+        otp: null,
+        otpExpiry: null,
         createdAt: new Date(),
         updatedAt: new Date(),
     },
@@ -32,6 +35,9 @@ const mockUsers = [
         name: 'Regular User',
         role: 'user',
         hostelId: '550e8400-e29b-41d4-a716-446655440000',
+        isEmailVerified: true,
+        otp: null,
+        otpExpiry: null,
         createdAt: new Date(),
         updatedAt: new Date(),
     }
@@ -41,6 +47,7 @@ const mockDeposits = [];
 const mockDailyCalculations = [];
 const mockNotices = [];
 const mockNotes = [];
+const mockMeals = [];
 exports.mockDatabase = {
     hostel: {
         findUnique: async ({ where, select }) => {
@@ -64,14 +71,41 @@ exports.mockDatabase = {
             const newHostel = { ...data, id: (0, uuid_1.v4)(), createdAt: new Date(), updatedAt: new Date() };
             mockHostels.push(newHostel);
             return newHostel;
+        },
+        findFirst: async (params) => {
+            return exports.mockDatabase.hostel.findUnique(params);
+        },
+        count: async ({ where }) => {
+            if (!where)
+                return mockHostels.length;
+            return mockHostels.filter(h => {
+                if (where.registrationNumber)
+                    return h.registrationNumber === where.registrationNumber;
+                return true;
+            }).length;
         }
     },
     user: {
-        findUnique: async ({ where }) => {
-            return mockUsers.find(u => u.email === where.email || u.id === where.id) || null;
+        findUnique: async ({ where, include }) => {
+            const user = mockUsers.find(u => u.email === where.email || u.id === where.id) || null;
+            if (user && include && include.hostel) {
+                return {
+                    ...user,
+                    hostel: mockHostels.find(h => h.id === user.hostelId) || null
+                };
+            }
+            return user;
         },
         create: async ({ data }) => {
-            const newUser = { ...data, id: (0, uuid_1.v4)(), createdAt: new Date(), updatedAt: new Date() };
+            const newUser = {
+                id: (0, uuid_1.v4)(),
+                isEmailVerified: false,
+                otp: null,
+                otpExpiry: null,
+                ...data,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
             mockUsers.push(newUser);
             return newUser;
         },
@@ -81,6 +115,15 @@ exports.mockDatabase = {
                 return null;
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data, updatedAt: new Date() };
             return mockUsers[userIndex];
+        },
+        count: async ({ where }) => {
+            if (!where)
+                return mockUsers.length;
+            return mockUsers.filter(u => {
+                if (where.hostelId)
+                    return u.hostelId === where.hostelId;
+                return true;
+            }).length;
         }
     },
     expense: {
@@ -91,6 +134,9 @@ exports.mockDatabase = {
             }
             if (where?.date?.gte) {
                 expenses = expenses.filter(e => new Date(e.date) >= new Date(where.date.gte));
+            }
+            if (where?.date?.lte) {
+                expenses = expenses.filter(e => new Date(e.date) <= new Date(where.date.lte));
             }
             if (orderBy?.date === 'desc') {
                 expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -125,15 +171,23 @@ exports.mockDatabase = {
             mockExpenses.splice(index, 1);
             return deleted;
         },
+        findFirst: async ({ where }) => {
+            const all = await exports.mockDatabase.expense.findMany({ where });
+            return all[0] || null;
+        },
+        count: async ({ where }) => {
+            const all = await exports.mockDatabase.expense.findMany({ where });
+            return all.length;
+        },
         groupBy: async ({ by, where }) => {
-            const expenses = await this.findMany({ where });
+            const expenses = await exports.mockDatabase.expense.findMany({ where });
             const groups = {};
-            expenses.forEach(expense => {
+            expenses.forEach((expense) => {
                 const key = expense[by[0]];
                 if (!groups[key]) {
                     groups[key] = { [by[0]]: key, _sum: { amount: 0 }, _count: { _all: 0 } };
                 }
-                groups[key]._sum.amount += parseFloat(expense.amount);
+                groups[key]._sum.amount += expense.amount.toNumber ? expense.amount.toNumber() : parseFloat(expense.amount);
                 groups[key]._count._all += 1;
             });
             return Object.values(groups);
@@ -190,6 +244,27 @@ exports.mockDatabase = {
             mockDeposits.splice(index, 1);
             return deleted;
         },
+        findFirst: async ({ where }) => {
+            const all = await exports.mockDatabase.deposit.findMany({ where });
+            return all[0] || null;
+        },
+        count: async ({ where }) => {
+            const all = await exports.mockDatabase.deposit.findMany({ where });
+            return all.length;
+        },
+        groupBy: async ({ by, where }) => {
+            const deposits = await exports.mockDatabase.deposit.findMany({ where });
+            const groups = {};
+            deposits.forEach(d => {
+                const key = d[by[0]];
+                if (!groups[key]) {
+                    groups[key] = { [by[0]]: key, _sum: { amount: 0 }, _count: { amount: 0 } };
+                }
+                groups[key]._sum.amount += d.amount.toNumber ? d.amount.toNumber() : parseFloat(d.amount);
+                groups[key]._count.amount += 1;
+            });
+            return Object.values(groups);
+        },
         aggregate: async ({ where, _sum }) => {
             let deposits = [...mockDeposits];
             if (where?.hostelId) {
@@ -214,7 +289,7 @@ exports.mockDatabase = {
                 dc.date.toDateString() === where.hostelId_date.date.toDateString()) || null;
         },
         upsert: async ({ where, update, create }) => {
-            const existing = await exports.mockDatabase.dailyCalculation.findUnique({ where });
+            const existing = await exports.mockDatabase.dailyCalculation.findUnique({ where: where });
             if (existing) {
                 const index = mockDailyCalculations.findIndex(dc => dc.hostelId === where.hostelId_date.hostelId &&
                     dc.date.toDateString() === where.hostelId_date.date.toDateString());
@@ -329,6 +404,43 @@ exports.mockDatabase = {
             const deleted = mockNotes[index];
             mockNotes.splice(index, 1);
             return deleted;
+        }
+    },
+    meal: {
+        findMany: async ({ where }) => {
+            let meals = [...mockMeals];
+            if (where?.hostelId) {
+                meals = meals.filter(m => m.hostelId === where.hostelId);
+            }
+            if (where?.date) {
+                const targetDate = new Date(where.date).toDateString();
+                meals = meals.filter(m => new Date(m.date).toDateString() === targetDate);
+            }
+            return meals;
+        },
+        upsert: async ({ where, update, create }) => {
+            const { meal_date_userId } = where;
+            const hostelId = meal_date_userId.hostelId || create.hostelId;
+            const date = meal_date_userId.date || create.date;
+            const userId = meal_date_userId.userId || create.userId;
+            const targetDate = new Date(date).toDateString();
+            const index = mockMeals.findIndex(m => m.hostelId === hostelId &&
+                m.userId === userId &&
+                new Date(m.date).toDateString() === targetDate);
+            if (index !== -1) {
+                mockMeals[index] = { ...mockMeals[index], ...update, updatedAt: new Date() };
+                return mockMeals[index];
+            }
+            else {
+                const newMeal = {
+                    id: (0, uuid_1.v4)(),
+                    ...create,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+                mockMeals.push(newMeal);
+                return newMeal;
+            }
         }
     },
     $transaction: async (operations) => {

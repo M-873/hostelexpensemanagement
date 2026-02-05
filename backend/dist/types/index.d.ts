@@ -54,7 +54,7 @@ export interface DashboardData {
 export interface AuthRequest {
     email: string;
     password: string;
-    role: 'admin' | 'user';
+    role: 'ADMIN' | 'USER' | 'MANAGER';
 }
 export interface AuthResponse {
     token: string;
