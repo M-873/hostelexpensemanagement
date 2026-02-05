@@ -130,13 +130,13 @@ router.get('/charts', authenticateToken, requireHostelAccess, async (req: Authen
     res.json({
       charts: {
         balanceTrend: dashboardCalculations,
-        expenseCategories: expenseCategories.map((cat: CategoryAggregation) => ({
+        expenseCategories: expenseCategories.map((cat: any) => ({
           category: cat.category,
-          total: cat._sum.amount?.toNumber() || 0,
+          total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
         })),
-        depositCategories: depositCategories.map((cat: CategoryAggregation) => ({
+        depositCategories: depositCategories.map((cat: any) => ({
           category: cat.category,
-          total: cat._sum.amount?.toNumber() || 0,
+          total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
         })),
       },
     });
@@ -222,7 +222,7 @@ router.get('/summary', authenticateToken, requireHostelAccess, async (req: Authe
     ]);
 
     const monthlyTotal = monthlyCalculations.reduce(
-      (acc, calc) => ({
+      (acc: any, calc: any) => ({
         totalExpenses: acc.totalExpenses + calc.totalExpenses.toNumber(),
         totalDeposits: acc.totalDeposits + calc.totalDeposits.toNumber(),
         netBalance: acc.netBalance + calc.netBalance.toNumber(),
@@ -239,18 +239,18 @@ router.get('/summary', authenticateToken, requireHostelAccess, async (req: Authe
           endDate: endDate.toISOString(),
         },
         totals: monthlyTotal,
-        expenseCategories: expenseCategories.map(cat => ({
+        expenseCategories: expenseCategories.map((cat: any) => ({
           category: cat.category,
-          total: cat._sum.amount.toNumber(),
+          total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
           count: cat._count.amount,
         })),
-        depositCategories: depositCategories.map(cat => ({
+        depositCategories: depositCategories.map((cat: any) => ({
           category: cat.category,
-          total: cat._sum.amount.toNumber(),
+          total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
           count: cat._count.amount,
         })),
         newMembers: memberStats,
-        dailyBreakdown: monthlyCalculations.map(calc => ({
+        dailyBreakdown: monthlyCalculations.map((calc: any) => ({
           date: calc.date.toISOString(),
           totalExpenses: calc.totalExpenses.toNumber(),
           totalDeposits: calc.totalDeposits.toNumber(),
@@ -362,7 +362,7 @@ router.get('/export', authenticateToken, requireHostelAccess, async (req: Authen
         userName: d.user.name,
         userEmail: d.user.email,
       })),
-      calculations: calculations.map(c => ({
+      calculations: calculations.map((c: any) => ({
         date: c.date.toISOString(),
         totalExpenses: c.totalExpenses.toNumber(),
         totalDeposits: c.totalDeposits.toNumber(),
@@ -387,7 +387,7 @@ router.get('/export', authenticateToken, requireHostelAccess, async (req: Authen
   }
 });
 
-function convertToCSV(data: { expenses: { id: string; description: string; amount: number; date: string; category: string }[]; deposits: { id: string; description: string; amount: number; date: string }[]; dailyCalculations: { date: string; totalExpenses: number; totalDeposits: number; netBalance: number }[] }): string {
+function convertToCSV(data: { expenses: any[]; deposits: any[]; calculations: any[] }): string {
   let csv = '';
 
   // Expenses CSV

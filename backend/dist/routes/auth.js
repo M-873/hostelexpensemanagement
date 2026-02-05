@@ -9,7 +9,6 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const prisma_1 = require("../prisma");
 const prisma = prisma_1.prisma;
-const otpService_1 = require("../services/otpService");
 const router = express_1.default.Router();
 const loginSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
@@ -18,17 +17,6 @@ const loginSchema = zod_1.z.object({
 });
 const registerSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
-    password: zod_1.z.string().min(6),
-    name: zod_1.z.string().min(2),
-    role: zod_1.z.enum(['ADMIN', 'USER', 'MANAGER']).optional(),
-    hostelId: zod_1.z.string().uuid().optional(),
-});
-const otpRequestSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
-});
-const otpVerifySchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
-    otp: zod_1.z.string().length(6, 'OTP must be 6 digits'),
     password: zod_1.z.string().min(6),
     name: zod_1.z.string().min(2),
     role: zod_1.z.enum(['ADMIN', 'USER', 'MANAGER']).optional(),
@@ -77,100 +65,6 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Login error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
-    }
-});
-router.post('/request-otp', async (req, res) => {
-    try {
-        const { email } = otpRequestSchema.parse(req.body);
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
-        });
-        if (existingUser && existingUser.isEmailVerified) {
-            return res.status(400).json({ error: 'User already exists and is verified' });
-        }
-        const otp = (0, otpService_1.generateOTP)();
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-        if (existingUser) {
-            await prisma.user.update({
-                where: { email },
-                data: { otp, otpExpiry },
-            });
-        }
-        else {
-            await prisma.user.create({
-                data: {
-                    email,
-                    password: '',
-                    name: '',
-                    role: 'user',
-                    hostelId: null,
-                    otp,
-                    otpExpiry,
-                    isEmailVerified: false,
-                },
-            });
-        }
-        await (0, otpService_1.sendOTP)(email, otp);
-        return res.json({ message: 'OTP sent successfully', email });
-    }
-    catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            return res.status(400).json({ error: 'Invalid input', details: error.errors });
-        }
-        console.error('OTP request error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
-    }
-});
-router.post('/verify-otp', async (req, res) => {
-    try {
-        const { email, otp, password, name, role, hostelId } = otpVerifySchema.parse(req.body);
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
-        if (!user) {
-            return res.status(400).json({ error: 'User not found' });
-        }
-        if (!user.otp || !user.otpExpiry) {
-            return res.status(400).json({ error: 'No OTP found' });
-        }
-        if ((0, otpService_1.isOTPExpired)(user.otpExpiry)) {
-            return res.status(400).json({ error: 'OTP expired' });
-        }
-        if (!(0, otpService_1.verifyOTP)(user.otp, otp)) {
-            return res.status(400).json({ error: 'Invalid OTP' });
-        }
-        const hashedPassword = await bcryptjs_1.default.hash(password, 12);
-        const updatedUser = await prisma.user.update({
-            where: { email },
-            data: {
-                password: hashedPassword,
-                name,
-                role: role || 'user',
-                hostelId,
-                otp: null,
-                otpExpiry: null,
-                isEmailVerified: true,
-            },
-        });
-        const token = jsonwebtoken_1.default.sign({ userId: updatedUser.id, role: updatedUser.role, hostelId: updatedUser.hostelId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        const response = {
-            token,
-            user: {
-                id: updatedUser.id,
-                email: updatedUser.email,
-                name: updatedUser.name,
-                role: updatedUser.role,
-                hostelId: updatedUser.hostelId || undefined,
-            },
-        };
-        return res.json(response);
-    }
-    catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            return res.status(400).json({ error: 'Invalid input', details: error.errors });
-        }
-        console.error('OTP verification error:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });

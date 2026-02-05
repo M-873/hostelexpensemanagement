@@ -55,14 +55,14 @@ export default function ControlPanel() {
                       <td className="text-muted-foreground">{index + 1}</td>
                       <td className="font-medium">{member.name}</td>
                       <td>
-                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                        <Badge variant={member.role === 'ADMIN' ? 'default' : 'secondary'}>
                           {member.role}
                         </Badge>
                       </td>
                       <td className="text-primary">{member.email}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          {member.role === 'admin' ? (
+                          {member.role === 'ADMIN' ? (
                             <>
                               <Edit2 className="h-4 w-4 text-primary" />
                               <span className="text-sm">editing</span>
@@ -106,7 +106,7 @@ export default function ControlPanel() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="cursor-pointer hover:border-primary transition-colors">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-warning/10">

@@ -179,7 +179,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => 
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors[0].message });
     } else {
-      res.status(500).json({ error: 'Failed to update note' });
+      return res.status(500).json({ error: 'Failed to update note' });
     }
   }
 });
@@ -215,7 +215,7 @@ router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) 
     return res.json({ message: 'Note deleted successfully' });
   } catch (error) {
     console.error('Error deleting note:', error);
-    res.status(500).json({ error: 'Failed to delete note' });
+    return res.status(500).json({ error: 'Failed to delete note' });
   }
 });
 

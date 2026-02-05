@@ -108,7 +108,7 @@ export class DataCleanupService {
       // Archive old data (you could implement archiving logic here)
       // For now, we'll just log what would be archived
       const oldDataStats = await this.getOldDataStats(oneYearAgo);
-      
+
       console.log(`Deep cleanup stats:
         - Hostels with no recent activity: ${oldDataStats.inactiveHostels}
         - Users with no recent activity: ${oldDataStats.inactiveUsers}

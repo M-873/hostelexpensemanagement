@@ -35,8 +35,8 @@ async function calculateDailyTotals(hostelId, date) {
             amount: true,
         },
     });
-    const totalExpenses = expenses._sum.amount || 0;
-    const totalDeposits = deposits._sum.amount || 0;
+    const totalExpenses = expenses._sum.amount?.toNumber?.() || Number(expenses._sum.amount) || 0;
+    const totalDeposits = deposits._sum.amount?.toNumber?.() || Number(deposits._sum.amount) || 0;
     const netBalance = totalDeposits - totalExpenses;
     const dailyCalculation = await server_1.prisma.dailyCalculation.upsert({
         where: {
@@ -71,11 +71,11 @@ async function getCurrentBalance(hostelId) {
             if (typeof balance === 'number') {
                 return total + balance;
             }
-            else if (balance && typeof balance === 'object' && 'toNumber' in balance && typeof balance.toNumber === 'function') {
+            else if (balance && typeof balance === 'object' && typeof balance.toNumber === 'function') {
                 return total + balance.toNumber();
             }
             else if (balance && typeof balance === 'object' && typeof balance.valueOf === 'function') {
-                return total + balance.valueOf();
+                return total + Number(balance.valueOf());
             }
             else if (balance !== null && balance !== undefined) {
                 return total + (parseFloat(String(balance)) || 0);
@@ -105,7 +105,7 @@ async function getDashboardCalculations(hostelId, days = 30) {
         },
         take: days,
     });
-    return calculations.map(calc => ({
+    return calculations.map((calc) => ({
         date: calc.date.toISOString().split('T')[0],
         totalExpenses: calc.totalExpenses.toNumber(),
         totalDeposits: calc.totalDeposits.toNumber(),
@@ -172,7 +172,7 @@ async function getRecentTransactions(hostelId, limit = 10) {
         }),
     ]);
     const transactions = [
-        ...expenses.map(e => ({
+        ...expenses.map((e) => ({
             id: e.id,
             type: 'expense',
             amount: e.amount.toNumber(),
@@ -180,7 +180,7 @@ async function getRecentTransactions(hostelId, limit = 10) {
             date: e.date.toISOString(),
             user: { name: e.user.name },
         })),
-        ...deposits.map(d => ({
+        ...deposits.map((d) => ({
             id: d.id,
             type: 'deposit',
             amount: d.amount.toNumber(),

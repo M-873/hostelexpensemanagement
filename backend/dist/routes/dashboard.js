@@ -108,11 +108,11 @@ router.get('/charts', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
                 balanceTrend: dashboardCalculations,
                 expenseCategories: expenseCategories.map((cat) => ({
                     category: cat.category,
-                    total: cat._sum.amount?.toNumber() || 0,
+                    total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
                 })),
                 depositCategories: depositCategories.map((cat) => ({
                     category: cat.category,
-                    total: cat._sum.amount?.toNumber() || 0,
+                    total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
                 })),
             },
         });
@@ -203,18 +203,18 @@ router.get('/summary', auth_1.authenticateToken, auth_1.requireHostelAccess, asy
                     endDate: endDate.toISOString(),
                 },
                 totals: monthlyTotal,
-                expenseCategories: expenseCategories.map(cat => ({
+                expenseCategories: expenseCategories.map((cat) => ({
                     category: cat.category,
-                    total: cat._sum.amount.toNumber(),
+                    total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
                     count: cat._count.amount,
                 })),
-                depositCategories: depositCategories.map(cat => ({
+                depositCategories: depositCategories.map((cat) => ({
                     category: cat.category,
-                    total: cat._sum.amount.toNumber(),
+                    total: cat._sum.amount?.toNumber?.() || Number(cat._sum.amount) || 0,
                     count: cat._count.amount,
                 })),
                 newMembers: memberStats,
-                dailyBreakdown: monthlyCalculations.map(calc => ({
+                dailyBreakdown: monthlyCalculations.map((calc) => ({
                     date: calc.date.toISOString(),
                     totalExpenses: calc.totalExpenses.toNumber(),
                     totalDeposits: calc.totalDeposits.toNumber(),
@@ -318,7 +318,7 @@ router.get('/export', auth_1.authenticateToken, auth_1.requireHostelAccess, asyn
                 userName: d.user.name,
                 userEmail: d.user.email,
             })),
-            calculations: calculations.map(c => ({
+            calculations: calculations.map((c) => ({
                 date: c.date.toISOString(),
                 totalExpenses: c.totalExpenses.toNumber(),
                 totalDeposits: c.totalDeposits.toNumber(),

@@ -16,7 +16,7 @@ import noticeBoardRoutes from './routes/noticeBoard';
 import notesRoutes from './routes/notes';
 import mealRoutes from './routes/meals';
 import googleAuthRoutes from './routes/googleAuth';
-import { prisma } from './prisma';
+export { prisma } from './prisma';
 
 dotenv.config();
 

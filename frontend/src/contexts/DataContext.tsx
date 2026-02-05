@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
-import { DailyExpense, Deposit as DepositType, IndividualBalance, Summary } from '@/types';
+import { DailyExpense, Deposit, IndividualBalance, Summary } from '@/types';
 import { expenseService } from '@/services/expenseService';
 import { depositService } from '@/services/depositService';
 import { mealService } from '@/services/mealService';
@@ -32,7 +32,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<DailyExpense[]>([]);
-  const [deposits, setDeposits] = useState<DepositType[]>([]);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchAllData = useCallback(async () => {
@@ -122,7 +122,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const members = useMemo(() => deposits.map(d => d.memberName), [deposits]);
 
   const updateMeal = useCallback(async (dateIndex: number, memberName: string, delta: number) => {
-    if (user?.role !== 'admin' || !user.hostelId) return;
+    if (user?.role !== 'ADMIN' || !user.hostelId) return;
 
     const day = expenses[dateIndex];
     // Find member ID from deposits
@@ -146,7 +146,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [user, expenses, deposits, fetchAllData]);
 
   const updateBazarAmount = useCallback(async (dateIndex: number, value: string) => {
-    if (user?.role !== 'admin' || !user.hostelId) return;
+    if (user?.role !== 'ADMIN' || !user.hostelId) return;
 
     const amount = parseInt(value) || 0;
     const day = expenses[dateIndex];
@@ -174,7 +174,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [user, expenses, fetchAllData]);
 
   const updateDeposit = useCallback(async (memberId: string, amount: number) => {
-    if (user?.role !== 'admin' || !user.hostelId) return;
+    if (user?.role !== 'ADMIN' || !user.hostelId) return;
 
     try {
       // Logic for updating deposit... 
@@ -205,7 +205,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addEntry = useCallback(async (date: string) => {
-    if (user?.role !== 'admin' || !user.hostelId) return;
+    if (user?.role !== 'ADMIN' || !user.hostelId) return;
 
     try {
       await expenseService.createExpense({

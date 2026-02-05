@@ -3,7 +3,7 @@ import { prisma } from '../server';
 export async function calculateDailyTotals(hostelId: string, date: Date) {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
@@ -35,8 +35,8 @@ export async function calculateDailyTotals(hostelId: string, date: Date) {
     },
   });
 
-  const totalExpenses = expenses._sum.amount || 0;
-  const totalDeposits = deposits._sum.amount || 0;
+  const totalExpenses = (expenses._sum.amount as any)?.toNumber?.() || Number(expenses._sum.amount) || 0;
+  const totalDeposits = (deposits._sum.amount as any)?.toNumber?.() || Number(deposits._sum.amount) || 0;
   const netBalance = totalDeposits - totalExpenses;
 
   // Update or create daily calculation
@@ -73,14 +73,14 @@ export async function getCurrentBalance(hostelId: string): Promise<number> {
     });
 
     // Sum all net balances to get current balance
-    return calculations.reduce((total: number, calc: { netBalance: number }) => {
+    return calculations.reduce((total: number, calc: any) => {
       const balance = calc.netBalance;
       if (typeof balance === 'number') {
         return total + balance;
-      } else if (balance && typeof balance === 'object' && 'toNumber' in balance && typeof balance.toNumber === 'function') {
+      } else if (balance && typeof balance === 'object' && typeof balance.toNumber === 'function') {
         return total + balance.toNumber();
       } else if (balance && typeof balance === 'object' && typeof balance.valueOf === 'function') {
-        return total + balance.valueOf();
+        return total + Number(balance.valueOf());
       } else if (balance !== null && balance !== undefined) {
         return total + (parseFloat(String(balance)) || 0);
       } else {
@@ -110,7 +110,7 @@ export async function getDashboardCalculations(hostelId: string, days: number = 
     take: days,
   });
 
-  return calculations.map(calc => ({
+  return calculations.map((calc: any) => ({
     date: calc.date.toISOString().split('T')[0],
     totalExpenses: calc.totalExpenses.toNumber(),
     totalDeposits: calc.totalDeposits.toNumber(),
@@ -122,10 +122,10 @@ export async function triggerRealTimeUpdate(hostelId: string, updateType: 'expen
   try {
     // Calculate current balance
     const currentBalance = await getCurrentBalance(hostelId);
-    
+
     // Get recent transactions
     const recentTransactions = await getRecentTransactions(hostelId, 10);
-    
+
     // Get dashboard calculations
     const dailyCalculations = await getDashboardCalculations(hostelId, 30);
 
@@ -186,7 +186,7 @@ export async function getRecentTransactions(hostelId: string, limit: number = 10
   ]);
 
   const transactions = [
-    ...expenses.map(e => ({
+    ...expenses.map((e: any) => ({
       id: e.id,
       type: 'expense' as const,
       amount: e.amount.toNumber(),
@@ -194,7 +194,7 @@ export async function getRecentTransactions(hostelId: string, limit: number = 10
       date: e.date.toISOString(),
       user: { name: e.user.name },
     })),
-    ...deposits.map(d => ({
+    ...deposits.map((d: any) => ({
       id: d.id,
       type: 'deposit' as const,
       amount: d.amount.toNumber(),

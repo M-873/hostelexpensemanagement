@@ -110,7 +110,7 @@ export default function Profile() {
                             <h3 className="font-semibold mb-2">Account Statistics</h3>
                             <div className="grid grid-cols-2 gap-4 text-center">
                                 <div className="p-4 rounded-xl bg-primary/5 border">
-                                    <p className="text-2xl font-bold text-primary">{user.role === 'admin' ? 'Admin' : 'Member'}</p>
+                                    <p className="text-2xl font-bold text-primary">{user.role === 'ADMIN' ? 'Admin' : 'Member'}</p>
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Status</p>
                                 </div>
                                 <div className="p-4 rounded-xl bg-primary/5 border">

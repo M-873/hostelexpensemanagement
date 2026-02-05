@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.io = void 0;
+exports.io = exports.prisma = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
@@ -19,6 +19,8 @@ const noticeBoard_1 = __importDefault(require("./routes/noticeBoard"));
 const notes_1 = __importDefault(require("./routes/notes"));
 const meals_1 = __importDefault(require("./routes/meals"));
 const googleAuth_1 = __importDefault(require("./routes/googleAuth"));
+var prisma_1 = require("./prisma");
+Object.defineProperty(exports, "prisma", { enumerable: true, get: function () { return prisma_1.prisma; } });
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
