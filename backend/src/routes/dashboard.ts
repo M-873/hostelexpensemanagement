@@ -15,7 +15,7 @@ interface CategoryAggregation {
 const router = express.Router();
 
 // Get dashboard overview
-router.get('/overview', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/overview', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const hostelId = req.query.hostelId as string;
 
@@ -92,7 +92,7 @@ router.get('/overview', authenticateToken, requireHostelAccess, async (req: Auth
 });
 
 // Get dashboard charts data
-router.get('/charts', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/charts', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const hostelId = req.query.hostelId as string;
     const { days = 30 } = req.query;
@@ -141,13 +141,12 @@ router.get('/charts', authenticateToken, requireHostelAccess, async (req: Authen
       },
     });
   } catch (error) {
-    console.error('Get dashboard charts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get monthly summary
-router.get('/summary', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/summary', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const hostelId = req.query.hostelId as string;
     const { year = new Date().getFullYear(), month = new Date().getMonth() + 1 } = req.query;
@@ -259,13 +258,12 @@ router.get('/summary', authenticateToken, requireHostelAccess, async (req: Authe
       },
     });
   } catch (error) {
-    console.error('Get monthly summary error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get real-time updates (for WebSocket connection)
-router.get('/realtime', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/realtime', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const hostelId = req.query.hostelId as string;
 
@@ -295,13 +293,12 @@ router.get('/realtime', authenticateToken, requireHostelAccess, async (req: Auth
       },
     });
   } catch (error) {
-    console.error('Get real-time data error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Export data
-router.get('/export', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/export', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     const hostelId = req.query.hostelId as string;
     const { format = 'json', startDate, endDate } = req.query;
@@ -382,8 +379,7 @@ router.get('/export', authenticateToken, requireHostelAccess, async (req: Authen
 
     res.json(exportData);
   } catch (error) {
-    console.error('Export data error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

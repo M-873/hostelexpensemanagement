@@ -32,10 +32,11 @@ export class DataCleanupService {
     console.log('Data cleanup jobs scheduled successfully');
   }
 
-  private async cleanupOldData(): Promise<void> {
+  public async cleanupOldData(retentionDays?: number): Promise<number> {
     try {
+      const ninetyDaysLimit = retentionDays || 90;
       const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - ninetyDaysLimit);
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -95,8 +96,11 @@ export class DataCleanupService {
         - Private notes deleted: ${deletedNotes.count}
       `);
 
+      return deletedExpenses.count + deletedDeposits.count + deletedCalculations.count + deletedNotices.count + deletedNotes.count;
+
     } catch (error) {
       console.error('Error during data cleanup:', error);
+      return 0;
     }
   }
 
@@ -162,6 +166,10 @@ export class DataCleanupService {
 export const dataCleanupService = DataCleanupService.getInstance();
 
 // Standalone function for manual cleanup
+export async function cleanupOldData(retentionDays?: number): Promise<number> {
+  return await dataCleanupService.cleanupOldData(retentionDays);
+}
+
 export async function runCleanup(): Promise<void> {
   await dataCleanupService.manualCleanup();
 }

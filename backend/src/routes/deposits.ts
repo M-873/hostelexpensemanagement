@@ -67,7 +67,7 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
     ]);
 
     return res.json({
-      deposits: deposits.map(deposit => ({
+      deposits: (deposits as any[]).map((deposit: any) => ({
         ...deposit,
         amount: (deposit as any).amount.toNumber(),
         category: (deposit as any).category,
@@ -80,7 +80,6 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
       },
     });
   } catch (error) {
-    console.error('Get deposits error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

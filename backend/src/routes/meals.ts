@@ -13,7 +13,7 @@ const mealUpsertSchema = z.object({
 });
 
 // Get all meals for a hostel/date
-router.get('/', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.get('/', authenticateToken, requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
     try {
         const hostelId = req.query.hostelId as string;
         const date = req.query.date as string;
@@ -37,13 +37,12 @@ router.get('/', authenticateToken, requireHostelAccess, async (req: Authenticate
 
         res.json({ meals });
     } catch (error) {
-        console.error('Get meals error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Upsert a meal record (Admin only)
-router.post('/upsert', authenticateToken, requireRole(['admin']), requireHostelAccess, async (req: AuthenticatedRequest, res) => {
+router.post('/upsert', authenticateToken, requireRole(['ADMIN']), requireHostelAccess, async (req: AuthenticatedRequest, res): Promise<any> => {
     try {
         const { date, count, userId, hostelId } = mealUpsertSchema.parse(req.body);
 
@@ -69,8 +68,7 @@ router.post('/upsert', authenticateToken, requireRole(['admin']), requireHostelA
         if (error instanceof z.ZodError) {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
-        console.error('Upsert meal error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 

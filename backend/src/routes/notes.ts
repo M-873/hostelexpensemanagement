@@ -21,13 +21,13 @@ const updateNoteSchema = z.object({
 });
 
 // Get all notes for a hostel
-router.get('/hostel/:hostelId', authenticateToken, async (req, res) => {
+router.get('/hostel/:hostelId', authenticateToken, async (req, res): Promise<any> => {
   try {
     const { hostelId } = req.params;
     const { category, isPublic } = req.query;
 
-    const where: { hostelId: string; category?: string; isPublic?: boolean } = { hostelId };
-    if (category) where.category = category;
+    const where: any = { hostelId };
+    if (category) where.category = category as string;
     if (isPublic !== undefined) where.isPublic = isPublic === 'true';
 
     const notes = await prisma.note.findMany({
@@ -49,13 +49,12 @@ router.get('/hostel/:hostelId', authenticateToken, async (req, res) => {
 
     res.json(notes);
   } catch (error) {
-    console.error('Error fetching notes:', error);
-    res.status(500).json({ error: 'Failed to fetch notes' });
+    return res.status(500).json({ error: 'Failed to fetch notes' });
   }
 });
 
 // Get a specific note
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
 
@@ -78,13 +77,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     return res.json(note);
   } catch (error) {
-    console.error('Error fetching note:', error);
-    res.status(500).json({ error: 'Failed to fetch note' });
+    return res.status(500).json({ error: 'Failed to fetch note' });
   }
 });
 
 // Create a new note
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/', authenticateToken, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -132,7 +130,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
 });
 
 // Update a note
-router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -214,7 +212,6 @@ router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res) 
 
     return res.json({ message: 'Note deleted successfully' });
   } catch (error) {
-    console.error('Error deleting note:', error);
     return res.status(500).json({ error: 'Failed to delete note' });
   }
 });
