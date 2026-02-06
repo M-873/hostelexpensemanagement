@@ -28,7 +28,14 @@ jobs:
         env:
           FRONTEND_DEPLOY_TOKEN: ${{ secrets.FRONTEND_DEPLOY_TOKEN }}
         run: |
-          git clone https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git frontend-deploy
+          # Check if frontend deployment repo exists
+          if git ls-remote --heads https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git main; then
+            git clone https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git frontend-deploy
+          else
+            echo "❌ Frontend deployment repository does not exist"
+            echo "Please create repository: M-873/hostelexpensemanagement1"
+            exit 1
+          fi
       
       - name: Sync frontend code
         run: |
