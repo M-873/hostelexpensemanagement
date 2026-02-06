@@ -61,7 +61,7 @@ jobs:
           fi
           
           git commit -m "Sync from monorepo: ${{ github.sha }}"
-          git push --force origin master
+          git push --force origin main
       
       - name: Trigger Render deployment
         if: success()
