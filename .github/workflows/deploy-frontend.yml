@@ -28,7 +28,7 @@ jobs:
         env:
           FRONTEND_DEPLOY_TOKEN: ${{ secrets.FRONTEND_DEPLOY_TOKEN }}
         run: |
-          git clone https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git frontend-deploy
+          git clone https://x-access-token:${FRONTEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement.git frontend-deploy
       
       - name: Sync frontend code
         run: |
@@ -70,7 +70,7 @@ jobs:
           fi
           
           git commit -m "Sync from monorepo: ${{ github.sha }}"
-          git push --force origin master
+          git push --force origin main
       
       - name: Trigger Vercel deployment
         if: success()
