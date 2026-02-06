@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { prisma as prismaClient } from '../prisma';
 const prisma = prismaClient as any;
 import { AuthRequest, AuthResponse } from '../types';
-import { generateOTP, sendOTP, verifyOTP, isOTPExpired } from '../services/otpService';
+
 
 const router = express.Router();
 
