@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "deploy": "2026-02-06T16:20:00Z",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
