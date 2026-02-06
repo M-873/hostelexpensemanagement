@@ -28,7 +28,7 @@ jobs:
         env:
           BACKEND_DEPLOY_TOKEN: ${{ secrets.BACKEND_DEPLOY_TOKEN }}
         run: |
-          git clone https://x-access-token:${BACKEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement1.git backend-deploy
+          git clone https://x-access-token:${BACKEND_DEPLOY_TOKEN}@github.com/M-873/hostelexpensemanagement.git backend-deploy
       
       - name: Sync backend code
         run: |
