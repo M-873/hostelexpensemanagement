@@ -1,0 +1,20 @@
+# Render Deployment Configuration
+services:
+  - type: web
+    name: hostel-expense-management-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://hostelexpensemanagement1.vercel.app
+      - key: PORT
+        value: 3001
+      - key: RENDER_API_KEY
+        sync: false
