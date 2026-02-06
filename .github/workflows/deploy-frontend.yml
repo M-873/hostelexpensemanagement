@@ -70,7 +70,7 @@ jobs:
           fi
           
           git commit -m "Sync from monorepo: ${{ github.sha }}"
-          git push origin master
+          git push --force origin master
       
       - name: Trigger Vercel deployment
         if: success()
